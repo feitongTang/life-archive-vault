@@ -649,44 +649,21 @@ __export(main_exports, {
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian6 = require("obsidian");
-var import_node_child_process2 = require("node:child_process");
-var import_node_path3 = require("node:path");
 
 // src/core/config.ts
 var PERIOD_KINDS = ["daily", "weekly", "monthly", "quarterly", "yearly"];
-var PERIOD_FOLDER = "\u5468\u671F\u7B14\u8BB0";
-var LIFEOS_PERIOD_FOLDER = "0. PeriodicNotes";
-var LIFEOS_PERIOD_TYPES = {
-  daily: "Daily",
-  weekly: "Weekly",
-  monthly: "Monthly",
-  quarterly: "Quarterly"
-};
-var LEGACY_PERIOD_FOLDERS = {
-  daily: "\u65E5\u8BB0",
-  weekly: "\u590D\u76D8/\u5468",
-  monthly: "\u590D\u76D8/\u6708",
-  quarterly: "\u590D\u76D8/\u5B63",
-  yearly: "\u590D\u76D8/\u5E74"
-};
-var PATHS = {
-  daily: `${PERIOD_FOLDER}/\u65E5`,
-  weekly: `${PERIOD_FOLDER}/\u5468`,
-  monthly: `${PERIOD_FOLDER}/\u6708`,
-  quarterly: `${PERIOD_FOLDER}/\u5B63`,
-  yearly: `${PERIOD_FOLDER}/\u5E74`,
-  thoughts: "\u601D\u60F3",
-  ai: "\u590D\u76D8/AI",
-  templates: "\u6A21\u677F"
-};
+var PERIOD_ROOT = "0. PeriodicNotes";
+var PERIOD_TYPES = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", quarterly: "Quarterly" };
+var OLD_TYPES = { daily: "\u65E5", weekly: "\u5468", monthly: "\u6708", quarterly: "\u5B63", yearly: "\u5E74" };
+var PATHS = { thoughts: "\u601D\u60F3", templates: "\u6A21\u677F" };
 var canonical = (path) => path.normalize("NFC").toLowerCase();
 var overlaps = (a, b) => a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
 var TEMPLATE_NAMES = {
-  daily: "\u65E5\u7B14\u8BB0",
-  weekly: "\u5468\u7B14\u8BB0",
-  monthly: "\u6708\u7B14\u8BB0",
-  quarterly: "\u5B63\u7B14\u8BB0",
-  yearly: "\u5E74\u7B14\u8BB0",
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+  quarterly: "Quarterly",
+  yearly: "Yearly",
   thought: "\u601D\u60F3\u6587\u7AE0"
 };
 function safePath(value) {
@@ -702,30 +679,13 @@ function record(input) {
 function loadConfig(input = {}) {
   const raw = record(input ?? {});
   if (raw.schemaVersion !== void 0 && raw.schemaVersion !== 1) throw new Error("\u4E0D\u652F\u6301\u7684\u914D\u7F6E\u7248\u672C");
-  const periodLayout = raw.periodLayout ?? "by-type";
-  if (periodLayout !== "by-type" && periodLayout !== "annual" && periodLayout !== "lifeos") throw new Error("\u65E0\u6548\u7684\u5468\u671F\u7B14\u8BB0\u76EE\u5F55\u5E03\u5C40");
-  const timezone2 = raw.timezone ?? "Asia/Shanghai";
-  if (typeof timezone2 !== "string") throw new Error("\u65F6\u533A\u5FC5\u987B\u662F IANA \u65F6\u533A\u540D\u79F0");
-  try {
-    new Intl.DateTimeFormat("zh-CN", { timeZone: timezone2 }).format();
-  } catch {
-    throw new Error(`\u65E0\u6548\u65F6\u533A\uFF1A${timezone2}`);
-  }
   const inputPaths = raw.paths === void 0 ? {} : record(raw.paths);
   const paths = Object.fromEntries(Object.entries(PATHS).map(([kind, fallback]) => [kind, safePath(inputPaths[kind] ?? fallback)]));
-  const periodRoots = [...new Set(PERIOD_KINDS.map((kind) => paths[kind]))].map(canonical);
-  const otherRoots = [paths.thoughts, paths.ai, paths.templates].map(canonical);
-  const roots = [...periodRoots, ...otherRoots];
-  for (let i = 0; i < roots.length; i++) for (let j = i + 1; j < roots.length; j++) {
-    const a = roots[i], b = roots[j];
-    if (overlaps(a, b)) throw new Error(`\u5185\u5BB9\u76EE\u5F55\u4E0D\u80FD\u91CD\u53E0\uFF1A${a} / ${b}`);
-  }
-  const usesDefaultPeriodFolder = PERIOD_KINDS.some((kind) => paths[kind] === PATHS[kind]);
-  const readRoots = usesDefaultPeriodFolder ? [...roots, PERIOD_FOLDER] : roots;
-  if (usesDefaultPeriodFolder && otherRoots.some((path) => overlaps(path, PERIOD_FOLDER))) throw new Error(`\u5185\u5BB9\u76EE\u5F55\u4E0D\u80FD\u91CD\u53E0\uFF1A${PERIOD_FOLDER}`);
-  if (periodLayout === "lifeos" && usesDefaultPeriodFolder) {
-    if (roots.some((path) => overlaps(path, canonical(LIFEOS_PERIOD_FOLDER)))) throw new Error(`\u5185\u5BB9\u76EE\u5F55\u4E0D\u80FD\u91CD\u53E0\uFF1A${LIFEOS_PERIOD_FOLDER}`);
-    readRoots.push(canonical(LIFEOS_PERIOD_FOLDER));
+  const roots = [PERIOD_ROOT, "\u5468\u671F\u7B14\u8BB0", "\u65E5\u8BB0", paths.thoughts, paths.templates].map(canonical);
+  for (const [index, root] of roots.entries()) {
+    for (const other of roots.slice(index + 1)) {
+      if (overlaps(root, other)) throw new Error(`\u5185\u5BB9\u76EE\u5F55\u4E0D\u80FD\u91CD\u53E0\uFF1A${root} / ${other}`);
+    }
   }
   const inputTemplates = raw.templates === void 0 ? {} : record(raw.templates);
   const templates = Object.fromEntries(Object.entries(TEMPLATE_NAMES).map(([kind, name]) => {
@@ -738,87 +698,43 @@ function loadConfig(input = {}) {
   if (typeof githubRemote !== "string" || githubRemote && !/^(git@github\.com:|https:\/\/github\.com\/)[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+\.git$/.test(githubRemote)) {
     throw new Error("GitHub \u5730\u5740\u9700\u4F7F\u7528\u4E0D\u5E26\u51ED\u636E\u7684 SSH \u6216 HTTPS \u514B\u9686\u5730\u5740");
   }
-  if (raw.codexPath !== void 0 && (typeof raw.codexPath !== "string" || /[\x00\r\n]/.test(raw.codexPath))) throw new Error("Codex \u7A0B\u5E8F\u8DEF\u5F84\u65E0\u6548");
-  if (raw.nodePath !== void 0 && (typeof raw.nodePath !== "string" || /[\x00\r\n]/.test(raw.nodePath))) throw new Error("Node.js \u7A0B\u5E8F\u8DEF\u5F84\u65E0\u6548");
-  const extra = raw.extraReadFolders ?? [];
-  if (!Array.isArray(extra)) throw new Error("\u989D\u5916\u8BFB\u53D6\u76EE\u5F55\u5FC5\u987B\u4E3A\u6570\u7EC4");
-  const extraReadFolders = extra.map(safePath);
-  for (const inputPath of extraReadFolders) {
-    if (readRoots.some((root) => overlaps(root, canonical(inputPath)))) throw new Error("\u989D\u5916\u8BFB\u53D6\u76EE\u5F55\u4E0D\u80FD\u8986\u76D6\u6216\u91CD\u53E0\u5DF2\u6709\u76EE\u5F55");
-  }
-  return {
-    schemaVersion: 1,
-    timezone: timezone2,
-    periodLayout,
-    paths,
-    templates,
-    openOnStartup: raw.openOnStartup !== false,
-    githubRemote,
-    codexPath: raw.codexPath || "codex",
-    nodePath: raw.nodePath || "node",
-    extraReadFolders
-  };
+  return { schemaVersion: 1, paths, templates, openOnStartup: raw.openOnStartup !== false, githubRemote };
 }
 function isWithin(path, folder) {
   return path.startsWith(`${folder}/`);
 }
-function annualPeriodRoot(kind, config) {
-  if (config.paths[kind] !== PATHS[kind]) return void 0;
-  if (config.periodLayout === "annual") return PERIOD_FOLDER;
-  if (config.periodLayout === "lifeos") return LIFEOS_PERIOD_FOLDER;
-  return void 0;
-}
-function annualPeriodFolders(kind, key, config) {
-  const root = annualPeriodRoot(kind, config);
-  if (!root) return [];
-  const roots = root === LIFEOS_PERIOD_FOLDER ? [root, PERIOD_FOLDER] : [root];
-  return roots.map((base) => nestedPeriodFolder(base, kind, key));
-}
-function nestedPeriodFolder(root, kind, key) {
-  const year = `${root}/${key.slice(0, 4)}`;
-  if (kind === "yearly") return year;
-  const type = root === LIFEOS_PERIOD_FOLDER ? LIFEOS_PERIOD_TYPES[kind] : PATHS[kind].slice(PERIOD_FOLDER.length + 1);
-  const folder = `${year}/${type}`;
-  return kind === "daily" ? `${folder}/${key.slice(5, 7)}` : folder;
-}
-function periodFolders(kind, config) {
-  const folder = config.paths[kind];
-  if (folder !== PATHS[kind] && folder !== PERIOD_FOLDER) return [folder];
-  const legacy = LEGACY_PERIOD_FOLDERS[kind];
-  const folders = folder === PERIOD_FOLDER ? [folder] : [folder, PERIOD_FOLDER];
-  if (!Object.values(config.paths).some((path) => overlaps(canonical(path), canonical(legacy)))) folders.push(legacy);
-  if (annualPeriodRoot(kind, config) === LIFEOS_PERIOD_FOLDER) folders.push(LIFEOS_PERIOD_FOLDER);
-  return folders;
+function periodFolders(kind, key) {
+  const year = key.slice(0, 4);
+  const annual = `${PERIOD_ROOT}/${year}`;
+  const oldAnnual = `\u5468\u671F\u7B14\u8BB0/${year}`;
+  const oldType = OLD_TYPES[kind];
+  const month = key.slice(5, 7);
+  const current = kind === "yearly" ? annual : `${annual}/${PERIOD_TYPES[kind]}${kind === "daily" ? `/${month}` : ""}`;
+  const previous = kind === "yearly" ? oldAnnual : `${oldAnnual}/${oldType}${kind === "daily" ? `/${month}` : ""}`;
+  return [current, previous, `\u5468\u671F\u7B14\u8BB0/${oldType}`, "\u5468\u671F\u7B14\u8BB0", ...kind === "daily" ? ["\u65E5\u8BB0"] : []];
 }
 
 // src/core/periods.ts
-var import_dayjs2 = __toESM(require_dayjs_min(), 1);
+var import_dayjs = __toESM(require_dayjs_min(), 1);
 var import_utc = __toESM(require_utc(), 1);
 var import_timezone = __toESM(require_timezone(), 1);
 var import_isoWeek = __toESM(require_isoWeek(), 1);
 var import_quarterOfYear = __toESM(require_quarterOfYear(), 1);
 var import_customParseFormat = __toESM(require_customParseFormat(), 1);
-
-// src/vendor/lifeos-calendar.ts
-var import_dayjs = __toESM(require_dayjs_min(), 1);
-function isoWeekRange(year, week) {
-  if (!Number.isInteger(year) || year < 1e3 || year > 9999 || !Number.isInteger(week) || week < 1 || week > 53) {
-    return { from: null, to: null };
-  }
+import_dayjs.default.extend(import_utc.default);
+import_dayjs.default.extend(import_timezone.default);
+import_dayjs.default.extend(import_isoWeek.default);
+import_dayjs.default.extend(import_quarterOfYear.default);
+import_dayjs.default.extend(import_customParseFormat.default);
+var CALENDAR_ZONE = "Asia/Shanghai";
+function isoWeekStart(year, week) {
+  if (year < 1e3 || year > 9999 || week < 1 || week > 53) return null;
   const start = import_dayjs.default.utc(`${year}-01-04`).startOf("isoWeek").add(week - 1, "week");
-  if (start.isoWeekYear() !== year) return { from: null, to: null };
-  return { from: start.format("YYYY-MM-DD"), to: start.add(6, "day").format("YYYY-MM-DD") };
+  return start.isoWeekYear() === year ? start : null;
 }
-
-// src/core/periods.ts
-import_dayjs2.default.extend(import_utc.default);
-import_dayjs2.default.extend(import_timezone.default);
-import_dayjs2.default.extend(import_isoWeek.default);
-import_dayjs2.default.extend(import_quarterOfYear.default);
-import_dayjs2.default.extend(import_customParseFormat.default);
 var PERIOD_LABELS = { daily: "\u65E5\u7B14\u8BB0", weekly: "\u5468\u7B14\u8BB0", monthly: "\u6708\u7B14\u8BB0", quarterly: "\u5B63\u7B14\u8BB0", yearly: "\u5E74\u7B14\u8BB0" };
 function parseDay(date) {
-  const d = import_dayjs2.default.utc(date, "YYYY-MM-DD", true);
+  const d = import_dayjs.default.utc(date, "YYYY-MM-DD", true);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !d.isValid() || d.year() < 1e3) throw new Error(`\u65E0\u6548\u65E5\u671F\uFF1A${date}`);
   return d;
 }
@@ -827,36 +743,28 @@ function assertMonth(month) {
   parseDay(`${month}-01`);
   return month;
 }
-function today(zone, now = /* @__PURE__ */ new Date()) {
-  return (0, import_dayjs2.default)(now).tz(zone).format("YYYY-MM-DD");
+function today(now = /* @__PURE__ */ new Date()) {
+  return (0, import_dayjs.default)(now).tz(CALENDAR_ZONE).format("YYYY-MM-DD");
 }
-function previousMonth(zone, now = /* @__PURE__ */ new Date()) {
-  return parseDay(today(zone, now)).subtract(1, "month").format("YYYY-MM");
-}
-function periodFor(kind, date, config) {
+function periodFor(kind, date) {
   const d = parseDay(date);
   let key, start, end;
   if (kind === "weekly") {
     key = `${d.isoWeekYear()}-W${String(d.isoWeek()).padStart(2, "0")}`;
-    const range = isoWeekRange(d.isoWeekYear(), d.isoWeek());
-    start = range.from;
-    end = range.to;
+    start = d.startOf("isoWeek").format("YYYY-MM-DD");
+    end = d.endOf("isoWeek").format("YYYY-MM-DD");
   } else {
     const unit = { daily: "day", monthly: "month", quarterly: "quarter", yearly: "year" }[kind];
     start = d.startOf(unit).format("YYYY-MM-DD");
     end = d.endOf(unit).format("YYYY-MM-DD");
     key = kind === "daily" ? date : kind === "monthly" ? d.format("YYYY-MM") : kind === "quarterly" ? `${d.year()}-Q${d.quarter()}` : d.format("YYYY");
   }
-  return { kind, key, title: key, start, end, path: `${annualPeriodFolders(kind, key, config)[0] ?? config.paths[kind]}/${key}.md` };
+  return { kind, key, title: key, start, end, path: `${periodFolders(kind, key)[0]}/${key}.md` };
 }
-function noteFolders(kind, key, config) {
-  const root = annualPeriodRoot(kind, config);
-  return [...annualPeriodFolders(kind, key, config), ...periodFolders(kind, config).filter((folder) => config.periodLayout !== "lifeos" || folder !== root)];
+function periodNotePaths(period) {
+  return periodFolders(period.kind, period.key).map((folder) => `${folder}/${period.key}.md`);
 }
-function periodNotePaths(period, config) {
-  return [.../* @__PURE__ */ new Set([period.path, ...noteFolders(period.kind, period.key, config).map((folder) => `${folder}/${period.key}.md`)])];
-}
-function calendarMonth(month, _zone) {
+function calendarMonth(month) {
   assertMonth(month);
   const first = parseDay(`${month}-01`), last = first.endOf("month");
   const weeks = [];
@@ -870,32 +778,20 @@ function calendarMonth(month, _zone) {
 }
 function classifyNote(path, config) {
   if (path.startsWith(`${config.paths.thoughts}/`) && path.endsWith(".md")) return { kind: "thoughts", key: path.slice(config.paths.thoughts.length + 1, -3), path };
-  const aiPrefix = `${config.paths.ai}/`;
-  if (path.startsWith(aiPrefix)) {
-    const key2 = path.slice(aiPrefix.length, -3);
-    try {
-      if (path.endsWith(".md")) {
-        assertMonth(key2);
-        return { kind: "ai", key: key2, path };
-      }
-    } catch {
-    }
-    return null;
-  }
   if (!path.endsWith(".md")) return null;
   const slash = path.lastIndexOf("/");
   const folder = path.slice(0, slash), key = path.slice(slash + 1, -3);
   for (const kind of PERIOD_KINDS) {
-    if (!noteFolders(kind, key, config).includes(folder)) continue;
+    if (!periodFolders(kind, key).includes(folder)) continue;
     try {
       let date;
       if (kind === "daily") date = key;
       else if (kind === "weekly") {
         const m = key.match(/^(\d{4})-W(\d{2})$/);
         if (!m) continue;
-        const range = isoWeekRange(Number(m[1]), Number(m[2]));
-        if (!range.from) continue;
-        date = range.from;
+        const start = isoWeekStart(Number(m[1]), Number(m[2]));
+        if (!start) continue;
+        date = start.format("YYYY-MM-DD");
       } else if (kind === "monthly") date = `${assertMonth(key)}-01`;
       else if (kind === "quarterly") {
         const m = key.match(/^(\d{4})-Q([1-4])$/);
@@ -905,7 +801,7 @@ function classifyNote(path, config) {
         if (!/^\d{4}$/.test(key)) continue;
         date = `${key}-01-01`;
       }
-      const p = periodFor(kind, date, config);
+      const p = periodFor(kind, date);
       if (p.key === key) return { kind, key, start: p.start, end: p.end, path };
     } catch {
     }
@@ -915,23 +811,21 @@ function classifyNote(path, config) {
 
 // src/core/templates.ts
 var defaultTemplates = {
-  daily: "---\nai: read\n---\n\n## \u4ECA\u5929\u53D1\u751F\u7684\u4E8B\n\n## \u6BCF\u65E5\u901F\u8BB0\n",
-  weekly: "---\nai: read\n---\n\n## \u672C\u5468\u56DE\u770B\n\n\n\n## \u9884\u671F\u4E0E\u5B9E\u9645\n\n\n\n## \u4E0B\u5468\u7684\u4E00\u4EF6\u4E8B\n\n{{start}} \u2014 {{end}}\n\n[[{{monthNote}}|\u672C\u6708\u7B14\u8BB0]]\n",
-  monthly: "---\nai: read\n---\n\n## \u8FD9\u4E2A\u6708\u53D1\u751F\u4E86\u4EC0\u4E48\n\n\n\n## \u60F3\u6CD5\u6709\u4EC0\u4E48\u53D8\u5316\n\n\n\n## \u505A\u8FC7\u7684\u9009\u62E9\n\n\n\n## \u4E0B\u4E2A\u6708\n\n{{start}} \u2014 {{end}}\n\n[[{{aiNote}}|\u67E5\u770B AI \u6708\u5EA6\u8349\u7A3F]]\n",
-  quarterly: "---\nai: read\n---\n\n## \u8FD9\u4E00\u5B63\u7684\u4E3B\u7EBF\n\n\n\n## \u7ED3\u679C\u3001\u53D8\u5316\u4E0E\u53CD\u4F8B\n\n\n\n## \u4E0B\u4E00\u9636\u6BB5\n\n{{start}} \u2014 {{end}}\n",
-  yearly: "---\nai: read\n---\n\n## \u8FD9\u4E00\u5E74\n\n\n\n## \u91CD\u8981\u7684\u7ECF\u5386\u4E0E\u9009\u62E9\n\n\n\n## \u6539\u53D8\u4E0E\u5EF6\u7EED\n\n\n\n## \u4E0B\u4E00\u5E74\n\n{{start}} \u2014 {{end}}\n",
-  thought: '---\nai: read\ndate: "{{date}}"\n---\n\n'
+  daily: "## \u4ECA\u5929\u53D1\u751F\u7684\u4E8B\n\n## \u6BCF\u65E5\u901F\u8BB0\n",
+  weekly: "## \u672C\u5468\u56DE\u770B\n\n\n\n## \u9884\u671F\u4E0E\u5B9E\u9645\n\n\n\n## \u4E0B\u5468\u7684\u4E00\u4EF6\u4E8B\n\n{{start}} \u2014 {{end}}\n",
+  monthly: "## \u8FD9\u4E2A\u6708\u53D1\u751F\u4E86\u4EC0\u4E48\n\n\n\n## \u60F3\u6CD5\u6709\u4EC0\u4E48\u53D8\u5316\n\n\n\n## \u505A\u8FC7\u7684\u9009\u62E9\n\n\n\n## \u4E0B\u4E2A\u6708\n\n{{start}} \u2014 {{end}}\n",
+  quarterly: "## \u8FD9\u4E00\u5B63\u7684\u4E3B\u7EBF\n\n\n\n## \u7ED3\u679C\u3001\u53D8\u5316\u4E0E\u53CD\u4F8B\n\n\n\n## \u4E0B\u4E00\u9636\u6BB5\n\n{{start}} \u2014 {{end}}\n",
+  yearly: "## \u8FD9\u4E00\u5E74\n\n\n\n## \u91CD\u8981\u7684\u7ECF\u5386\u4E0E\u9009\u62E9\n\n\n\n## \u6539\u53D8\u4E0E\u5EF6\u7EED\n\n\n\n## \u4E0B\u4E00\u5E74\n\n{{start}} \u2014 {{end}}\n",
+  thought: '---\ndate: "{{date}}"\n---\n\n'
 };
-function renderTemplate(template, period, config, date, monthPath) {
-  const month = period.start.slice(0, 7);
+function renderTemplate(template, period, date, monthPath) {
   const vars = {
     date,
     title: period.title,
     period: period.key,
     start: period.start,
     end: period.end,
-    monthNote: (monthPath ?? periodFor("monthly", period.start, config).path).slice(0, -3),
-    aiNote: `${config.paths.ai}/${month}`
+    monthNote: (monthPath ?? periodFor("monthly", period.start).path).slice(0, -3)
   };
   return template.replace(/\{\{\s*([A-Za-z]+)\s*\}\}/g, (match, key) => vars[key] ?? match);
 }
@@ -976,8 +870,7 @@ var NoteService = class {
   }
   async initialize() {
     const { paths } = this.config;
-    const periodRoots = PERIOD_KINDS.map((kind) => annualPeriodRoot(kind, this.config) ?? paths[kind]);
-    for (const path of /* @__PURE__ */ new Set([...periodRoots, paths.thoughts, paths.ai, paths.templates])) await this.ensureFolder(path);
+    for (const path of /* @__PURE__ */ new Set([PERIOD_ROOT, paths.thoughts, paths.templates])) await this.ensureFolder(path);
     for (const kind of Object.keys(this.config.templates)) {
       await this.getOrCreate(this.config.templates[kind], async () => defaultTemplates[kind]);
     }
@@ -1015,20 +908,20 @@ var NoteService = class {
     }
   }
   async openPeriod(kind, date) {
-    const p = periodFor(kind, date, this.config);
-    const existing = periodNotePaths(p, this.config).find((path) => this.port.get(path)?.kind === "file");
+    const p = periodFor(kind, date);
+    const existing = periodNotePaths(p).find((path) => this.port.get(path)?.kind === "file");
     const file = await this.getOrCreate(existing ?? p.path, async () => {
-      const month = periodFor("monthly", p.start, this.config);
-      const monthPath = periodNotePaths(month, this.config).find((path) => this.port.get(path)?.kind === "file");
-      return renderTemplate(await this.template(kind), p, this.config, date, monthPath);
+      const month = periodFor("monthly", p.start);
+      const monthPath = periodNotePaths(month).find((path) => this.port.get(path)?.kind === "file");
+      return renderTemplate(await this.template(kind), p, date, monthPath);
     });
     await this.port.open(file.path);
     return file.path;
   }
   async openThought(title, date) {
     const path = thoughtPath(title, this.config);
-    const p = { ...periodFor("daily", date, this.config), title: title.trim().replace(/\.md$/i, "") };
-    const file = await this.getOrCreate(path, async () => renderTemplate(await this.template("thought"), p, this.config, date));
+    const p = { ...periodFor("daily", date), title: title.trim().replace(/\.md$/i, "") };
+    const file = await this.getOrCreate(path, async () => renderTemplate(await this.template("thought"), p, date));
     await this.port.open(file.path);
     return file.path;
   }
@@ -1065,9 +958,6 @@ var ArchiveIndex = class {
   thoughts(limit = 6) {
     return [...this.files.values()].filter((f) => isWithin(f.path, this.config.paths.thoughts)).sort((a, b) => (b.date ?? "").localeCompare(a.date ?? "") || b.mtime - a.mtime || a.path.localeCompare(b.path)).slice(0, limit);
   }
-  aiReviews() {
-    return [...this.files.values()].filter((f) => classifyNote(f.path, this.config)?.kind === "ai").sort((a, b) => b.path.localeCompare(a.path));
-  }
   periodNotes(limit = 12) {
     return [...this.files.values()].filter((f) => classifyNote(f.path, this.config)?.start).sort((a, b) => b.mtime - a.mtime).slice(0, limit);
   }
@@ -1075,49 +965,6 @@ var ArchiveIndex = class {
     return this.files.size;
   }
 };
-
-// src/core/review-format.ts
-var AI_START = "<!-- life-archive:ai:start -->";
-var AI_END = "<!-- life-archive:ai:end -->";
-function aiRegion(text) {
-  if (text.split(AI_START).length !== 2 || text.split(AI_END).length !== 2) return null;
-  const start = text.indexOf(AI_START), end = text.indexOf(AI_END);
-  if (start >= end) return null;
-  return { before: text.slice(0, start + AI_START.length), content: text.slice(start + AI_START.length, end), after: text.slice(end) };
-}
-function section(text, heading) {
-  return text.match(new RegExp(`^## ${heading}\\s*\\n([\\s\\S]*?)(?=^## |$(?![\\s\\S]))`, "m"))?.[1]?.trim() ?? "";
-}
-function parseReview(text) {
-  const region = aiRegion(text);
-  if (!region) return null;
-  const summary = section(region.content, "\u6458\u8981");
-  if (!summary) return null;
-  const keywordText = section(region.content, "\u5173\u952E\u8BCD");
-  const keywords = [];
-  const re = /^### (?:\d+[.、]\s*)?([^\n]+)\n([\s\S]*?)(?=^### |$(?![\s\S]))/gm;
-  for (const match of keywordText.matchAll(re)) {
-    const body = match[2].trim();
-    const sources = [];
-    const sourceLines = body.split("\n").filter((line) => /^来源：\[\[/.test(line)).join("\n");
-    for (const link of sourceLines.matchAll(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g)) {
-      try {
-        const target = link[1].split("#")[0];
-        safePath(target);
-        sources.push({ path: target.endsWith(".md") ? target : `${target}.md`, label: link[2] ?? target });
-      } catch {
-      }
-    }
-    keywords.push({
-      keyword: match[1].trim(),
-      observation: body.split(/\n\s*\n|\n>/)[0].trim(),
-      quote: [...body.matchAll(/^> ?(.*)$/gm)].map((q) => q[1].replace(/\\([\\`*_{}\[\]()!#|])/g, "$1").replace(/&(lt|gt|amp);/g, (_, entity) => ({ lt: "<", gt: ">", amp: "&" })[entity])).join("\n"),
-      sources
-    });
-    if (keywords.length === 3) break;
-  }
-  return { summary, keywords, coverage: section(region.content, "\u8986\u76D6\u60C5\u51B5") };
-}
 
 // src/obsidian/vault-service.ts
 var import_obsidian = require("obsidian");
@@ -1190,7 +1037,7 @@ function button(parent, text, action, cls = "", label) {
   return b;
 }
 var monthLabel = (month) => `${Number(month.slice(0, 4))} \u5E74 ${Number(month.slice(5))} \u6708`;
-function section2(parent, title, small) {
+function section(parent, title, small) {
   const card = el(parent, "section", "la-card");
   const head = el(card, "div", "la-card-head");
   const group = el(head, "div");
@@ -1222,7 +1069,7 @@ function mountHome(container, model, actions) {
   sync.title = "\u7ACB\u5373\u540C\u6B65 GitHub";
   el(topActions, "span", "la-sync-status").setAttribute("role", "status");
   const status = el(root, "div", "la-stats");
-  const hasPeriod = (period) => periodNotePaths(period, model.config).some((path) => model.paths.has(path));
+  const hasPeriod = (period) => periodNotePaths(period).some((path) => model.paths.has(path));
   const recordedDays = /* @__PURE__ */ new Set();
   for (const path of model.paths) {
     if (!basename(path).startsWith(`${model.month}-`)) continue;
@@ -1237,24 +1084,8 @@ function mountHome(container, model, actions) {
   el(thoughts, "strong", "", String(model.thoughtCount));
   el(thoughts, "span", "", " \u7BC7\u601D\u60F3");
   el(status, "span", "la-private", "\u4FDD\u5B58\u5728\u4F60\u7684\u7B14\u8BB0\u5E93");
-  const review = el(root, "section", "la-reflection");
-  const reviewContent = el(review, "div", "la-reflection-content");
-  const reviewLabel = el(reviewContent, "div", "la-inline");
-  el(reviewLabel, "p", "la-eyebrow", "\u6708\u5EA6\u56DE\u671B");
-  if (model.latest) {
-    el(reviewLabel, "span", "la-badge", `${model.latest.month} \xB7 AI \u8349\u7A3F`);
-    el(reviewContent, "h2", "", "\u56DE\u770B\u8FD9\u6BB5\u65F6\u95F4");
-    el(reviewContent, "p", "la-summary", model.latest.display.summary);
-    openButton(review, "\u9605\u8BFB\u5168\u6587  \u2197", model.latest.path, "la-secondary la-review-link");
-  } else {
-    el(reviewLabel, "span", "la-badge la-badge-muted", "\u7B49\u5F85\u7B2C\u4E00\u4EFD\u56DE\u671B");
-    el(reviewContent, "h2", "", "\u8FD8\u6CA1\u6709\u6708\u5EA6\u590D\u76D8");
-    el(reviewContent, "p", "la-summary", "\u5468\u671F\u7B14\u8BB0\u548C\u601D\u60F3\u6162\u6162\u79EF\u7D2F\u540E\uFF0C\u53EF\u4EE5\u6574\u7406\u4E00\u4EFD\u5E26\u539F\u6587\u51FA\u5904\u7684\u6708\u5EA6\u56DE\u987E\u3002");
-    button(review, "\u51C6\u5907\u6708\u5EA6\u590D\u76D8  \u2197", "review", "la-secondary la-review-link");
-  }
-  if (model.reviewErrors) el(reviewContent, "p", "la-muted la-small", `\u6709 ${model.reviewErrors} \u4EFD\u590D\u76D8\u683C\u5F0F\u6682\u4E0D\u53EF\u8BFB\uFF0C\u5F53\u524D\u663E\u793A\u6700\u8FD1\u4E00\u4EFD\u53EF\u8BFB\u5185\u5BB9\u3002`);
   const grid = el(root, "div", "la-main-grid");
-  const calendar = section2(grid, "\u8BB0\u5F55\u65E5\u5386", "\u7ED9\u6BCF\u4E00\u5929\u7559\u4E2A\u4F4D\u7F6E");
+  const calendar = section(grid, "\u8BB0\u5F55\u65E5\u5386", "\u5468\u671F\u7B14\u8BB0");
   calendar.classList.add("la-calendar-card");
   const nav = el(calendar, "div", "la-calendar-nav");
   const monthInput = el(nav, "input", "la-month-input");
@@ -1275,18 +1106,18 @@ function mountHome(container, model, actions) {
   }
   const tbody = el(table, "tbody");
   const focus = model.focusDate ?? (model.today.startsWith(model.month) ? model.today : `${model.month}-01`);
-  for (const week of calendarMonth(model.month, model.config.timezone)) {
+  for (const week of calendarMonth(model.month)) {
     const row = el(tbody, "tr");
     const weekCell = el(row, "th");
     weekCell.scope = "row";
-    const weekExists = hasPeriod(periodFor("weekly", week.days[0], model.config));
+    const weekExists = hasPeriod(periodFor("weekly", week.days[0]));
     const wb = button(weekCell, week.key.slice(-2), "week", "la-week", `${week.key} \u5468\u7B14\u8BB0\uFF0C${weekExists ? "\u5DF2\u521B\u5EFA" : "\u5F85\u521B\u5EFA"}`);
     wb.dataset.week = week.key;
     wb.dataset.anchor = week.days[0];
     if (weekExists) wb.classList.add("has-note");
     for (const day of week.days) {
       const cell = el(row, "td");
-      const exists = hasPeriod(periodFor("daily", day, model.config)), isToday = day === model.today;
+      const exists = hasPeriod(periodFor("daily", day)), isToday = day === model.today;
       const label = `${day}${isToday ? "\uFF0C\u4ECA\u5929" : ""}\uFF0C${exists ? "\u5DF2\u6709\u8BB0\u5F55" : "\u5C1A\u672A\u521B\u5EFA"}`;
       const b = button(cell, "", "day", "la-day", label);
       b.dataset.date = day;
@@ -1310,35 +1141,15 @@ function mountHome(container, model, actions) {
   el(legend, "span", "", "\u4ECA\u5929");
   const periods = el(calendar, "div", "la-periods");
   for (const kind of ["monthly", "quarterly", "yearly"]) {
-    const p = periodFor(kind, `${model.month}-01`, model.config);
+    const p = periodFor(kind, `${model.month}-01`);
     const exists = hasPeriod(p);
     const b = button(periods, PERIOD_LABELS[kind], "period", "la-period-button");
     b.dataset.kind = kind;
     b.setAttribute("aria-label", `${p.key} \xB7 ${exists ? "\u6253\u5F00\u5DF2\u6709\u7B14\u8BB0" : "\u6309\u6A21\u677F\u521B\u5EFA"}`);
     el(b, "span", "la-period-state", exists ? "\u5DF2\u8BB0\u5F55 \u2197" : "\u5F85\u8BB0\u5F55 \uFF0B");
   }
-  const keywords = section2(grid, "\u8FD1\u671F\u5173\u952E\u8BCD", "\u4ECE\u8BB0\u5F55\u91CC\uFF0C\u770B\u89C1\u7EBF\u7D22");
-  if (model.latest?.display.keywords.length) {
-    el(keywords, "p", "la-muted la-small", `${model.latest.month} \xB7 \u6765\u81EA AI \u8349\u7A3F\uFF0C\u7B49\u5F85\u4F60\u7684\u6838\u5BF9`);
-    for (const [i, k] of model.latest.display.keywords.entries()) {
-      const item = el(keywords, "article", "la-keyword");
-      const title = el(item, "div", "la-keyword-title");
-      el(title, "span", "la-keyword-index", `0${i + 1}`);
-      openButton(title, k.keyword, model.latest.path, "la-text-button la-keyword-name");
-      el(item, "p", "la-observation", k.observation);
-      if (k.quote) el(item, "blockquote", "la-quote", k.quote);
-      const sources = el(item, "div", "la-source-links");
-      k.sources.forEach((s) => openButton(sources, `${s.label} \u2197`, s.path, "la-text-button la-source"));
-    }
-  } else {
-    const empty = el(keywords, "div", "la-empty la-keywords-empty");
-    el(empty, "div", "la-empty-mark", "\u201C");
-    el(empty, "h3", "", "\u8BA9\u7EBF\u7D22\u4ECE\u539F\u6587\u91CC\u957F\u51FA\u6765");
-    el(empty, "p", "", "\u6BCF\u6708\u6700\u591A\u4E09\u4E2A\u5173\u952E\u8BCD\u3002\u6BCF\u4E2A\u89C2\u5BDF\u90FD\u4FDD\u7559\u60C5\u5883\u548C\u539F\u6587\u51FA\u5904\uFF0C\u8D44\u6599\u4E0D\u8DB3\u65F6\u5C31\u7559\u767D\u3002");
-    button(empty, "\u6574\u7406\u4E00\u6B21\u6708\u5EA6\u56DE\u987E  \u2197", "review", "la-text-button");
-  }
-  const bottomGrid = el(root, "div", "la-bottom-grid");
-  const articles = section2(bottomGrid, "\u8FD1\u671F\u601D\u60F3", "\u7559\u4F4F\u4E00\u4E2A\u60F3\u6CD5");
+  const noteStack = el(grid, "div", "la-note-stack");
+  const articles = section(noteStack, "\u8FD1\u671F\u601D\u60F3", "\u7559\u4F4F\u4E00\u4E2A\u60F3\u6CD5");
   button(articles.querySelector(".la-card-head"), "\u67E5\u770B\u5168\u90E8 \u2197", "browse-thoughts", "la-text-button la-small");
   if (!model.thoughts.length) {
     const empty = el(articles, "div", "la-empty la-empty-compact");
@@ -1348,27 +1159,26 @@ function mountHome(container, model, actions) {
   for (const note of model.thoughts) {
     const b = openButton(articles, "", note.path, "la-note-row");
     el(b, "span", "", basename(note.path));
-    el(b, "span", "la-note-date", note.date ?? new Date(note.mtime).toLocaleDateString("zh-CN", { timeZone: model.config.timezone, month: "2-digit", day: "2-digit" }));
+    el(b, "span", "la-note-date", note.date ?? new Date(note.mtime).toLocaleDateString("zh-CN", { timeZone: CALENDAR_ZONE, month: "2-digit", day: "2-digit" }));
   }
-  const reviews = section2(bottomGrid, "\u5468\u671F\u7B14\u8BB0", "\u505C\u4E0B\u6765\uFF0C\u518D\u5411\u524D");
-  button(reviews.querySelector(".la-card-head"), "\u5168\u90E8\u7B14\u8BB0 \u2197", "browse-reviews", "la-text-button la-small");
-  if (!model.reviews.length) {
-    const empty = el(reviews, "div", "la-empty la-empty-compact");
+  const periodsSection = section(noteStack, "\u5468\u671F\u7B14\u8BB0", "\u6D4F\u89C8\u8BB0\u5F55");
+  button(periodsSection.querySelector(".la-card-head"), "\u5168\u90E8\u7B14\u8BB0 \u2197", "browse-periods", "la-text-button la-small");
+  if (!model.periods.length) {
+    const empty = el(periodsSection, "div", "la-empty la-empty-compact");
     el(empty, "p", "", "\u56DE\u770B\u505A\u8FC7\u7684\u4E8B\uFF0C\u8BB0\u4E0B\u53D8\u5316\u548C\u63A5\u4E0B\u6765\u7684\u65B9\u5411\u3002");
     const b = button(empty, "\u6253\u5F00\u672C\u5468\u7B14\u8BB0  \u2197", "current-week", "la-text-button");
     b.dataset.date = model.today;
   }
-  for (const note of model.reviews.slice(0, 4)) {
-    const b = openButton(reviews, "", note.path, "la-note-row");
+  for (const note of model.periods.slice(0, 4)) {
+    const b = openButton(periodsSection, "", note.path, "la-note-row");
     el(b, "span", "", basename(note.path));
     el(b, "span", "la-note-date", "\u6253\u5F00 \u2197");
   }
   const footer = el(root, "footer", "la-footer");
-  el(footer, "span", "", "\u8BB0\u5F55\u5C5E\u4E8E\u4F60\uFF0C\u56DE\u671B\u4E5F\u7531\u4F60\u5B9A\u4E49\u3002");
+  el(footer, "span", "", "\u6240\u6709\u7B14\u8BB0\u5747\u4FDD\u5B58\u5728\u5F53\u524D\u7B14\u8BB0\u5E93\u3002");
   const footActions = el(footer, "div", "la-inline");
   button(footActions, "\u4F7F\u7528\u8BF4\u660E", "help", "la-text-button");
   button(footActions, "\u8BBE\u7F6E", "settings", "la-text-button");
-  button(footActions, "\u751F\u6210\u6216\u8865\u8DD1\u6708\u5EA6\u56DE\u987E", "review", "la-text-button");
   const perform = (result) => {
     Promise.resolve(result).catch((error) => actions.error(error instanceof Error ? error.message : "\u64CD\u4F5C\u5931\u8D25"));
   };
@@ -1388,9 +1198,6 @@ function mountHome(container, model, actions) {
           break;
         case "file":
           perform(actions.openFile(b.dataset.path));
-          break;
-        case "review":
-          perform(actions.review());
           break;
         case "day":
           perform(actions.openPeriod("daily", b.dataset.date));
@@ -1414,8 +1221,8 @@ function mountHome(container, model, actions) {
         case "browse-thoughts":
           perform(actions.browse("thoughts"));
           break;
-        case "browse-reviews":
-          perform(actions.browse("reviews"));
+        case "browse-periods":
+          perform(actions.browse("periods"));
           break;
         case "help":
           perform(actions.help());
@@ -1462,10 +1269,9 @@ var HomeView = class extends import_obsidian2.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
-    this.month = today(plugin.config.timezone).slice(0, 7);
+    this.month = today().slice(0, 7);
   }
   dispose;
-  generation = 0;
   month;
   focusDate;
   getViewType() {
@@ -1482,7 +1288,6 @@ var HomeView = class extends import_obsidian2.ItemView {
     await this.refresh();
   }
   async onClose() {
-    this.generation++;
     this.dispose?.();
     this.contentEl.empty();
   }
@@ -1492,23 +1297,18 @@ var HomeView = class extends import_obsidian2.ItemView {
     if (button2) (0, import_obsidian2.setIcon)(button2, status.state === "success" ? "check" : status.state === "error" ? "x" : "refresh-cw");
   }
   async refresh() {
-    const generation = ++this.generation;
-    const latest = await this.plugin.latestReview();
-    if (generation !== this.generation) return;
     const scroll = this.contentEl.scrollTop;
     const active = this.contentEl.ownerDocument.activeElement;
     const oldDate = active?.dataset.date, oldAction = active?.dataset.action;
     this.dispose?.();
     this.dispose = mountHome(this.contentEl, {
-      today: today(this.plugin.config.timezone),
+      today: today(),
       month: this.month,
       config: this.plugin.config,
       paths: new Set(this.plugin.allPaths()),
       thoughts: this.plugin.index.thoughts(5),
       thoughtCount: this.plugin.index.thoughts(Number.MAX_SAFE_INTEGER).length,
-      reviews: this.plugin.index.periodNotes(),
-      latest: latest.review,
-      reviewErrors: latest.errors,
+      periods: this.plugin.index.periodNotes(),
       focusDate: this.focusDate
     }, {
       openPeriod: (kind, date) => this.plugin.notes.openPeriod(kind, date),
@@ -1520,7 +1320,6 @@ var HomeView = class extends import_obsidian2.ItemView {
         this.focusDate = focusDate;
         return this.refresh();
       },
-      review: () => this.plugin.review(),
       browse: (kind) => this.plugin.browse(kind),
       settings: () => this.plugin.openSettings(),
       help: () => this.plugin.help(),
@@ -1716,17 +1515,14 @@ var ArchiveSettings = class extends import_obsidian4.PluginSettingTab {
     const { containerEl: root } = this;
     root.empty();
     root.createEl("h2", { text: "\u4EBA\u751F\u5B58\u6863" });
-    root.createEl("p", { text: "\u65E5\u5E38\u8BB0\u5F55\u3001\u6708\u5EA6\u56DE\u671B\uFF0C\u4EE5\u53CA\u5C5E\u4E8E\u4F60\u7684\u7B14\u8BB0\u5E93\u3002\u76EE\u5F55\u4E0E\u6A21\u677F\u4FEE\u6539\u540E\u70B9\u51FB\u300C\u4FDD\u5B58\u8BBE\u7F6E\u300D\u3002", cls: "setting-item-description" });
+    root.createEl("p", { text: "\u7BA1\u7406\u7B14\u8BB0\u76EE\u5F55\u3001\u6A21\u677F\u548C\u540C\u6B65\u3002", cls: "setting-item-description" });
     const draft = structuredClone(this.archive.config);
     new import_obsidian4.Setting(root).setName("\u542F\u52A8\u65F6\u6253\u5F00\u4EBA\u751F\u5B58\u6863").addToggle((t) => t.setValue(draft.openOnStartup).onChange((v) => {
       draft.openOnStartup = v;
     }));
-    new import_obsidian4.Setting(root).setName("\u65E5\u5386\u65F6\u533A").setDesc("IANA \u65F6\u533A\u540D\u79F0\uFF0C\u4F8B\u5982 Asia/Shanghai\u3002\u5468\u671F\u6309\u6B64\u65F6\u533A\u7684\u81EA\u7136\u65E5\u5386\u8BA1\u7B97\u3002").addText((t) => t.setValue(draft.timezone).onChange((v) => {
-      draft.timezone = v.trim();
-    }));
     root.createEl("h3", { text: "\u7B14\u8BB0\u76EE\u5F55" });
-    new import_obsidian4.Setting(root).setName("\u5468\u671F\u7B14\u8BB0").setDesc("\u56FA\u5B9A\u4F7F\u7528 LifeOS \u82F1\u6587\u76EE\u5F55\uFF1A0. PeriodicNotes / \u5E74\u4EFD\u3002\u65E5\u8BB0\u518D\u6309\u6708\u5F52\u6863\uFF0C\u5E74\u8BB0\u76F4\u63A5\u653E\u5728\u5E74\u5EA6\u76EE\u5F55\u3002");
-    const names = { thoughts: "\u601D\u60F3\u6587\u7AE0", ai: "AI \u6708\u5EA6\u590D\u76D8", templates: "\u6A21\u677F\u76EE\u5F55" };
+    new import_obsidian4.Setting(root).setName("\u5468\u671F\u7B14\u8BB0").setDesc("\u6309\u5E74\u4EFD\u5B58\u653E\u4E8E 0. PeriodicNotes\u3002\u65E5\u7B14\u8BB0\u518D\u6309\u6708\u4EFD\u5F52\u6863\u3002");
+    const names = { thoughts: "\u601D\u60F3\u6587\u7AE0", templates: "\u6A21\u677F\u76EE\u5F55" };
     for (const kind of Object.keys(names)) new import_obsidian4.Setting(root).setName(names[kind]).addText((t) => t.setValue(draft.paths[kind]).onChange((value) => {
       const old = draft.paths[kind];
       draft.paths[kind] = value;
@@ -1739,21 +1535,12 @@ var ArchiveSettings = class extends import_obsidian4.PluginSettingTab {
     for (const kind of Object.keys(TEMPLATE_NAMES)) new import_obsidian4.Setting(root).setName(kind === "thought" ? TEMPLATE_NAMES.thought : PERIOD_LABELS[kind]).addText((t) => t.setValue(draft.templates[kind]).onChange((value) => {
       draft.templates[kind] = value;
     }));
-    root.createEl("p", { text: "\u652F\u6301 {{date}}\u3001{{title}}\u3001{{period}}\u3001{{start}}\u3001{{end}}\u3001{{monthNote}}\u3001{{aiNote}}\u3002\u6A21\u677F\u4FDD\u5B58\u5728\u7B14\u8BB0\u5E93\u4E2D\uFF0C\u53EF\u76F4\u63A5\u7F16\u8F91\u3002", cls: "setting-item-description" });
+    root.createEl("p", { text: "\u652F\u6301 {{date}}\u3001{{title}}\u3001{{period}}\u3001{{start}}\u3001{{end}}\u3001{{monthNote}}\u3002\u6A21\u677F\u4FDD\u5B58\u5728\u7B14\u8BB0\u5E93\u4E2D\uFF0C\u53EF\u76F4\u63A5\u7F16\u8F91\u3002", cls: "setting-item-description" });
     root.createEl("h3", { text: "GitHub \u540C\u6B65" });
     new import_obsidian4.Setting(root).setName("\u79C1\u6709\u4ED3\u5E93\u514B\u9686\u5730\u5740").setDesc("\u6253\u5F00 Vault \u65F6\u540C\u6B65\uFF0C\u4FDD\u5B58\u540E\u7B49\u5F85 30 \u79D2\u5408\u5E76\u540C\u6B65\u3002\u7559\u7A7A\u53EF\u505C\u7528\u3002").addText((t) => t.setValue(draft.githubRemote).onChange((value) => {
       draft.githubRemote = value.trim();
     }));
-    root.createEl("h3", { text: "AI \u6708\u5EA6\u56DE\u987E" });
-    new import_obsidian4.Setting(root).setName("Node.js \u7A0B\u5E8F\u8DEF\u5F84").setDesc("\u7528\u4E8E\u8FD0\u884C\u72EC\u7ACB\u590D\u76D8\u5DE5\u5177\u3002\u9ED8\u8BA4\u67E5\u627E node\uFF1B\u684C\u9762\u73AF\u5883\u627E\u4E0D\u5230\u65F6\u53EF\u586B\u5199\u5B8C\u6574\u8DEF\u5F84\u3002").addText((t) => t.setValue(draft.nodePath).onChange((value) => {
-      draft.nodePath = value.trim();
-    }));
-    new import_obsidian4.Setting(root).setName("Codex \u7A0B\u5E8F\u8DEF\u5F84").setDesc("\u9ED8\u8BA4\u81EA\u52A8\u67E5\u627E codex\uFF1B\u4E5F\u53EF\u586B\u5199\u672C\u673A\u7684\u5B8C\u6574\u53EF\u6267\u884C\u6587\u4EF6\u8DEF\u5F84\u3002").addText((t) => t.setValue(draft.codexPath).onChange((value) => {
-      draft.codexPath = value.trim();
-    }));
-    new import_obsidian4.Setting(root).setName("\u989D\u5916\u5141\u8BB8\u8BFB\u53D6\u7684\u76EE\u5F55").setDesc("\u6BCF\u884C\u4E00\u4E2A\u76F8\u5BF9\u76EE\u5F55\uFF1B\u4ECD\u9075\u5B88\u6BCF\u7BC7\u7B14\u8BB0\u7684 ai \u6743\u9650\uFF0C\u4EC5\u5728\u6309\u6708 date \u6216\u663E\u5F0F\u9009\u6750\u65F6\u7EB3\u5165\u3002").addTextArea((t) => t.setValue(draft.extraReadFolders.join("\n")).onChange((value) => {
-      draft.extraReadFolders = value.split("\n").map((s) => s.trim()).filter(Boolean);
-    }));
+    root.createEl("h3", { text: "\u4FDD\u5B58" });
     new import_obsidian4.Setting(root).setName("\u4FDD\u5B58\u8BBE\u7F6E").setDesc("\u6821\u9A8C\u8DEF\u5F84\u540E\u751F\u6548\uFF1B\u65B0\u76EE\u5F55\u4E0E\u7F3A\u5931\u6A21\u677F\u4F1A\u81EA\u52A8\u8865\u9F50\uFF0C\u5DF2\u6709\u6587\u4EF6\u4FDD\u7559\u3002").addButton((b) => b.setButtonText("\u4FDD\u5B58\u8BBE\u7F6E").setCta().onClick(async () => {
       try {
         await this.archive.updateConfig(draft);
@@ -1786,7 +1573,7 @@ var ThoughtModal = class extends import_obsidian5.Modal {
       title = input.value;
       create.disabled = true;
       try {
-        await this.plugin.notes.openThought(title, today(this.plugin.config.timezone));
+        await this.plugin.notes.openThought(title, today());
         this.close();
       } catch (e) {
         error.setText(e instanceof Error ? e.message : "\u521B\u5EFA\u5931\u8D25");
@@ -1823,156 +1610,14 @@ var NotesModal = class extends import_obsidian5.FuzzySuggestModal {
     void this.openNote(note.path).catch((e) => new import_obsidian5.Notice(e instanceof Error ? e.message : "\u65E0\u6CD5\u6253\u5F00\u7B14\u8BB0"));
   }
 };
-var ReviewModal = class extends import_obsidian5.Modal {
-  constructor(plugin) {
-    super(plugin.app);
-    this.plugin = plugin;
-    this.month = previousMonth(plugin.config.timezone);
-  }
-  month;
-  prepared;
-  phase = "idle";
-  alive = true;
-  onOpen() {
-    this.modalEl.addClass("la-review-modal");
-    this.titleEl.setText("\u6574\u7406\u4E00\u6B21\u6708\u5EA6\u56DE\u987E");
-    this.draw();
-  }
-  draw(errorMessage) {
-    const root = this.contentEl;
-    root.empty();
-    root.createEl("p", { text: "\u5148\u770B\u672C\u6708\u4F1A\u7528\u5230\u54EA\u4E9B\u8D44\u6599\uFF0C\u518D\u4EA4\u7ED9 Codex \u6574\u7406\u3002\u539F\u59CB\u5468\u671F\u7B14\u8BB0\u548C\u601D\u60F3\u6587\u7AE0\u53EA\u8BFB\uFF0C\u7ED3\u679C\u4FDD\u5B58\u4E3A\u72EC\u7ACB\u7684 AI \u8349\u7A3F\u3002" });
-    new import_obsidian5.Setting(root).setName("\u590D\u76D8\u6708\u4EFD").setDesc("\u9ED8\u8BA4\u56DE\u987E\u4E0A\u4E00\u81EA\u7136\u6708\uFF0C\u4E5F\u53EF\u4EE5\u8865\u8DD1\u5176\u4ED6\u6708\u4EFD\u3002").addText((t) => {
-      t.inputEl.type = "month";
-      t.setValue(this.month).setDisabled(this.phase !== "idle");
-      t.onChange((value) => {
-        this.month = value;
-      });
-    });
-    const state = root.createDiv("la-review-state");
-    state.setAttribute("aria-live", "polite");
-    if (errorMessage) {
-      const error = state.createEl("p", { text: errorMessage, cls: "la-error" });
-      error.setAttribute("role", "alert");
-    }
-    if (this.phase === "preparing") state.createEl("p", { text: "\u6B63\u5728\u6309\u6743\u9650\u7B5B\u9009\u8D44\u6599\u2026\u2026" });
-    if (this.phase === "generating") state.createEl("p", { text: "Codex \u6B63\u5728\u751F\u6210\u8349\u7A3F\u3002\u4F60\u53EF\u4EE5\u5173\u95ED\u6B64\u7A97\u53E3\u7EE7\u7EED\u5199\u4F5C\uFF0C\u7ED3\u679C\u4F1A\u51FA\u73B0\u5728\u9996\u9875\u3002" });
-    if (this.prepared && ["ready", "done"].includes(this.phase)) {
-      state.createEl("p", { text: `\u5DF2\u7EB3\u5165 ${this.prepared.sources.length} \u7BC7\u8D44\u6599\uFF0C\u65E5\u8BB0\u8986\u76D6 ${this.prepared.coverage.recordedDays} / ${this.prepared.coverage.totalDays} \u5929\u3002` });
-      const list = state.createEl("ul", { cls: "la-material-list" });
-      for (const path of this.prepared.sources) {
-        const li = list.createEl("li");
-        const link = li.createEl("button", { text: path.replace(/\.md$/, ""), cls: "la-text-button" });
-        link.addEventListener("click", () => {
-          void this.plugin.port.open(path).catch((e) => new import_obsidian5.Notice(e.message));
-        });
-      }
-      if (!this.prepared.sources.length) state.createEl("p", { text: "\u6CA1\u6709\u53EF\u7528\u6750\u6599\u65F6\u53EA\u8BB0\u5F55\u8D44\u6599\u4E0D\u8DB3\uFF0C\u4E0D\u8C03\u7528\u6A21\u578B\uFF0C\u4E5F\u4E0D\u751F\u6210\u89C2\u5BDF\u3002", cls: "la-muted" });
-      const missing = [...this.prepared.coverage.excluded, ...this.prepared.coverage.unreadable];
-      if (missing.length) {
-        const details = state.createEl("details");
-        details.createEl("summary", { text: `${missing.length} \u9879\u672A\u7EB3\u5165\uFF0C\u5C55\u5F00\u67E5\u770B\u539F\u56E0` });
-        const ul = details.createEl("ul");
-        for (const item of missing) ul.createEl("li", { text: `${item.path}\uFF1A${item.reason}` });
-      }
-    }
-    const buttons = root.createDiv("modal-button-container");
-    if (this.phase === "idle") {
-      const prepare = buttons.createEl("button", { text: "\u67E5\u770B\u5C06\u4F7F\u7528\u7684\u8D44\u6599", cls: "mod-cta" });
-      prepare.addEventListener("click", () => {
-        void this.prepare();
-      });
-    } else if (this.phase === "ready") {
-      let accepted = !this.prepared?.sources.length;
-      const explanation = root.createEl("p", { text: "\u5F53\u524D\u6309\u5E94\u7528\u89C4\u5219\u7B5B\u9009\u8F93\u5165\u5E76\u5173\u95ED Codex \u7684\u6587\u4EF6\u3001\u6D4F\u89C8\u548C\u5916\u90E8\u5DE5\u5177\uFF0C\u5C1A\u672A\u9A8C\u8BC1\u64CD\u4F5C\u7CFB\u7EDF\u7EA7\u7684\u8BFB\u53D6\u9694\u79BB\u3002\u9996\u6B21\u5EFA\u8BAE\u5148\u5728\u7B14\u8BB0\u5E93\u526F\u672C\u8BD5\u8DD1\u3002", cls: "setting-item-description" });
-      buttons.before(explanation);
-      const run = buttons.createEl("button", { text: this.prepared?.sources.length ? "\u751F\u6210 AI \u8349\u7A3F" : "\u8BB0\u5F55\u8D44\u6599\u4E0D\u8DB3", cls: "mod-cta" });
-      run.disabled = !accepted;
-      if (this.prepared?.sources.length) {
-        const consent = new import_obsidian5.Setting(root).setName("\u540C\u610F\u672C\u6B21\u5C06\u6240\u5217\u8D44\u6599\u4EA4\u7ED9 Codex").addToggle((t) => t.setValue(false).onChange((value) => {
-          accepted = value;
-          run.disabled = !accepted;
-        }));
-        buttons.before(consent.settingEl);
-      }
-      run.addEventListener("click", () => {
-        if (accepted) void this.generate();
-      });
-      const reset = buttons.createEl("button", { text: "\u91CD\u65B0\u9009\u6708\u4EFD" });
-      reset.addEventListener("click", () => {
-        void this.reset();
-      });
-    }
-    if (this.phase === "done") buttons.createEl("button", { text: "\u5B8C\u6210", cls: "mod-cta" }).addEventListener("click", () => this.close());
-  }
-  async prepare() {
-    try {
-      assertMonth(this.month);
-    } catch {
-      this.draw("\u8BF7\u9009\u62E9\u6709\u6548\u6708\u4EFD");
-      return;
-    }
-    this.phase = "preparing";
-    this.draw();
-    try {
-      const prepared = await this.plugin.runCli(["prepare", "--month", this.month]);
-      this.prepared = prepared;
-      if (!this.alive) {
-        await this.plugin.runCli(["cancel", "--month", prepared.month, "--run", prepared.id]);
-        return;
-      }
-      this.phase = "ready";
-      this.draw();
-    } catch (e) {
-      this.phase = "idle";
-      if (this.alive) this.draw(e instanceof Error ? e.message : "\u51C6\u5907\u5931\u8D25");
-    }
-  }
-  async generate() {
-    if (!this.prepared) return;
-    this.phase = "generating";
-    this.draw();
-    try {
-      const result = await this.plugin.runCli(["generate", "--month", this.month, "--run", this.prepared.id, "--allow-app-layer"]);
-      this.phase = "done";
-      this.prepared = void 0;
-      this.plugin.requestRefresh();
-      new import_obsidian5.Notice(result.status === "insufficient" ? "\u5DF2\u8BB0\u5F55\u672C\u6708\u8D44\u6599\u4E0D\u8DB3" : "AI \u6708\u5EA6\u590D\u76D8\u8349\u7A3F\u5DF2\u751F\u6210");
-      if (this.alive) {
-        this.close();
-        await this.plugin.port.open(result.targetPath);
-      }
-    } catch (e) {
-      this.phase = "idle";
-      this.prepared = void 0;
-      if (this.alive) this.draw(e instanceof Error ? e.message : "\u751F\u6210\u5931\u8D25\uFF0C\u8FD0\u884C\u8BB0\u5F55\u5DF2\u4FDD\u7559");
-      else new import_obsidian5.Notice(e instanceof Error ? e.message : "\u590D\u76D8\u751F\u6210\u5931\u8D25");
-    }
-  }
-  async reset() {
-    if (this.prepared) await this.plugin.runCli(["cancel", "--month", this.month, "--run", this.prepared.id]);
-    this.prepared = void 0;
-    this.phase = "idle";
-    this.draw();
-  }
-  onClose() {
-    this.alive = false;
-    if (this.prepared && this.phase === "ready") void this.plugin.runCli(["cancel", "--month", this.month, "--run", this.prepared.id]).catch(() => {
-    });
-    this.contentEl.empty();
-  }
-};
 var HelpModal = class extends import_obsidian5.Modal {
   onOpen() {
     this.titleEl.setText("\u4EBA\u751F\u5B58\u6863 \xB7 \u4F7F\u7528\u8BF4\u660E");
     const content = this.contentEl;
     const steps = [
       ["\u6253\u5F00\u5468\u671F\u7B14\u8BB0", "\u70B9\u51FB\u65E5\u671F\u3001\u5468\u53F7\u6216\u6708\uFF0F\u5B63\uFF0F\u5E74\u6309\u94AE\uFF0C\u6253\u5F00\u5BF9\u5E94\u5468\u671F\u7684\u7B14\u8BB0\u3002\u5DF2\u6709\u8BB0\u5F55\u7684\u65E5\u671F\u4F1A\u663E\u793A\u5706\u70B9\u3002"],
-      ["\u7559\u4F4F\u601D\u60F3", "\u70B9\u51FB\u300C\u65B0\u5EFA\u601D\u60F3\u6587\u7AE0\u300D\uFF0C\u8F93\u5165\u6807\u9898\u540E\u7EE7\u7EED\u5728 Obsidian \u4E2D\u5199\u4F5C\u3002date \u7528\u4E8E\u786E\u5B9A\u6587\u7AE0\u7684\u5199\u4F5C\u6708\u4EFD\u3002"],
-      ["\u6708\u5EA6 AI \u56DE\u987E", "\u70B9\u51FB\u300C\u51C6\u5907\u6708\u5EA6\u590D\u76D8\u300D\uFF0C\u67E5\u770B\u83B7\u51C6\u8D44\u6599\uFF0C\u518D\u8FD0\u884C Codex\u3002\u5173\u952E\u8BCD\u548C\u77ED\u5F15\u90FD\u53EF\u70B9\u51FB\u56DE\u5230\u539F\u6587\u3002"],
-      ["\u63A7\u5236 AI \u6743\u9650", "\u5728 YAML \u4E2D\u5199 ai: off \u53EF\u5173\u95ED\u8BE5\u7BC7\u8D44\u6599\u7684 AI \u8BFB\u53D6\u3002ai: read \u5141\u8BB8\u8BFB\u53D6\uFF1B\u5468\u671F\u7B14\u8BB0\u548C\u601D\u60F3\u5373\u4F7F\u5199 ai: write\uFF0C\u4ECD\u53EA\u8BFB\u3002"],
-      ["\u4FDD\u7559\u81EA\u5DF1\u7684\u6279\u6CE8", "AI \u590D\u76D8\u4E2D\u7684\u300C\u7528\u6237\u6279\u6CE8\u300D\u548C\u300C\u786E\u8BA4\u8BB0\u5F55\u300D\u7531\u4F60\u586B\u5199\u3002\u91CD\u8DD1\u53EA\u66FF\u6362\u6807\u8BB0\u5185\u7684 AI \u5185\u5BB9\u3002"],
-      ["\u5B9A\u65F6\u4E0E\u8865\u8DD1", "\u5B89\u88C5\u76EE\u5F55\u9644\u5E26\u72EC\u7ACB\u7684 review.cjs\u3002\u53EF\u4EE5\u7531 Codex \u5B9A\u65F6\u8C03\u7528\uFF1B\u8BBE\u5907\u7761\u7720\u3001\u4F11\u7720\u8865\u507F\u548C\u7CFB\u7EDF\u7EA7\u9694\u79BB\u9A8C\u8BC1\u5B8C\u6210\u524D\uFF0C\u5E94\u5148\u624B\u52A8\u8BD5\u8DD1\u3002\u5177\u4F53\u547D\u4EE4\u89C1\u53D1\u884C\u5305\u4E2D\u7684\u81EA\u52A8\u5316\u8BF4\u660E\u3002"]
+      ["\u7559\u4F4F\u601D\u60F3", "\u70B9\u51FB\u300C\u65B0\u5EFA\u601D\u60F3\u6587\u7AE0\u300D\uFF0C\u8F93\u5165\u6807\u9898\u540E\u7EE7\u7EED\u5728 Obsidian \u4E2D\u5199\u4F5C\u3002"],
+      ["\u5199\u4F5C\u63D0\u793A", "\u6253\u5F00\u5468\u671F\u7B14\u8BB0\u540E\uFF0C\u70B9\u51FB\u53F3\u4E0A\u89D2\u7684\u300C\u5199\u4F5C\u63D0\u793A\u300D\uFF0C\u5728\u4FA7\u680F\u67E5\u770B\u53EF\u9009\u7684\u8BB0\u5F55\u8981\u70B9\u3002"]
     ];
     for (const [title, text] of steps) {
       content.createEl("h3", { text: title });
@@ -1981,28 +1626,10 @@ var HelpModal = class extends import_obsidian5.Modal {
   }
 };
 
-// src/obsidian/node-runtime.ts
-var import_promises = require("node:fs/promises");
-var import_node_fs = require("node:fs");
-var import_node_os = require("node:os");
-var import_node_path = require("node:path");
-async function nodeExecutable(requested = "node") {
-  if (requested !== "node") return requested;
-  const candidates = process.platform === "win32" ? [] : [(0, import_node_path.join)((0, import_node_os.homedir)(), ".local/bin/node"), "/opt/homebrew/bin/node", "/usr/local/bin/node", "/usr/bin/node"];
-  for (const candidate of candidates) {
-    try {
-      await (0, import_promises.access)(candidate, import_node_fs.constants.X_OK);
-      return candidate;
-    } catch {
-    }
-  }
-  return "node";
-}
-
 // src/obsidian/github-sync.ts
 var import_node_child_process = require("node:child_process");
-var import_promises2 = require("node:fs/promises");
-var import_node_path2 = require("node:path");
+var import_promises = require("node:fs/promises");
+var import_node_path = require("node:path");
 var import_node_util = require("node:util");
 var execute = (0, import_node_util.promisify)(import_node_child_process.execFile);
 function githubRepository(url) {
@@ -2030,14 +1657,14 @@ async function syncVault(root, remote) {
       throw new Error(failure);
     }
   };
-  const metadata = await (0, import_promises2.lstat)((0, import_node_path2.join)(root, ".git")).catch((error) => {
+  const metadata = await (0, import_promises.lstat)((0, import_node_path.join)(root, ".git")).catch((error) => {
     if (error.code === "ENOENT") return null;
     throw error;
   });
   if (metadata && !metadata.isDirectory()) throw new Error("Git \u5143\u6570\u636E\u4E0D\u662F\u666E\u901A\u76EE\u5F55");
   if (!metadata) await git(["init", "--initial-branch=main"], "\u65E0\u6CD5\u521D\u59CB\u5316\u6587\u4EF6\u5E93\u7684 Git \u4ED3\u5E93");
   const base = await git(["rev-parse", "--show-toplevel"], "\u65E0\u6CD5\u5B9A\u4F4D Git \u4ED3\u5E93");
-  if (await (0, import_promises2.realpath)(base.output) !== await (0, import_promises2.realpath)(root)) throw new Error("Git \u4ED3\u5E93\u6839\u76EE\u5F55\u4E0E Vault \u4E0D\u4E00\u81F4");
+  if (await (0, import_promises.realpath)(base.output) !== await (0, import_promises.realpath)(root)) throw new Error("Git \u4ED3\u5E93\u6839\u76EE\u5F55\u4E0E Vault \u4E0D\u4E00\u81F4");
   const branch = await git(["branch", "--show-current"], "\u65E0\u6CD5\u8BFB\u53D6\u5F53\u524D Git \u5206\u652F");
   if (branch.output !== "main") throw new Error("\u8BF7\u5207\u6362\u5230 main \u5206\u652F\u540E\u540C\u6B65");
   const merge = await git(["rev-parse", "--quiet", "--verify", "MERGE_HEAD"], "\u65E0\u6CD5\u68C0\u67E5\u5DF2\u6709\u5408\u5E76", [0, 1]);
@@ -2085,9 +1712,7 @@ var LifeArchive = class extends import_obsidian6.Plugin {
   port;
   notes;
   index;
-  reviewCache = /* @__PURE__ */ new Map();
   refreshTimer = null;
-  children = /* @__PURE__ */ new Set();
   ready = false;
   refreshWritingGuide;
   syncTimer;
@@ -2117,24 +1742,21 @@ var LifeArchive = class extends import_obsidian6.Plugin {
       void this.syncGitHub(true);
     } });
     for (const kind of PERIOD_KINDS) this.addCommand({ id: `open-${kind}`, name: `\u6253\u5F00\u5F53\u524D${PERIOD_LABELS[kind]}`, callback: () => {
-      void this.notes.openPeriod(kind, today(this.config.timezone)).catch((e) => new import_obsidian6.Notice(e.message));
+      void this.notes.openPeriod(kind, today()).catch((e) => new import_obsidian6.Notice(e.message));
     } });
     this.addCommand({ id: "new-thought", name: "\u65B0\u5EFA\u601D\u60F3\u6587\u7AE0", callback: () => this.newThought() });
-    this.addCommand({ id: "monthly-ai-review", name: "\u751F\u6210\u6216\u8865\u8DD1 AI \u6708\u5EA6\u590D\u76D8", callback: () => this.review() });
-    this.addCommand({ id: "browse-reviews", name: "\u6D4F\u89C8\u5468\u671F\u7B14\u8BB0", callback: () => this.browse("reviews") });
+    this.addCommand({ id: "browse-periods", name: "\u6D4F\u89C8\u5468\u671F\u7B14\u8BB0", callback: () => this.browse("periods") });
     this.addCommand({ id: "browse-thoughts", name: "\u6D4F\u89C8\u601D\u60F3\u6587\u7AE0", callback: () => this.browse("thoughts") });
     this.addCommand({ id: "initialize", name: "\u8865\u9F50\u76EE\u5F55\u4E0E\u6A21\u677F", callback: () => {
       void this.notes.initialize().then(() => new import_obsidian6.Notice("\u76EE\u5F55\u4E0E\u6A21\u677F\u5DF2\u68C0\u67E5\uFF0C\u5DF2\u6709\u6587\u4EF6\u4FDD\u7559")).catch((e) => new import_obsidian6.Notice(e.message));
     } });
     this.registerObsidianProtocolHandler("life-archive", async (params) => {
-      if (params.action === "review") this.review();
-      else if (params.action === "period" && PERIOD_KINDS.includes(params.kind)) await this.notes.openPeriod(params.kind, params.date || today(this.config.timezone)).catch((e) => new import_obsidian6.Notice(e.message));
+      if (params.action === "period" && PERIOD_KINDS.includes(params.kind)) await this.notes.openPeriod(params.kind, params.date || today()).catch((e) => new import_obsidian6.Notice(e.message));
       else await this.openHome();
     });
     const update = (file) => {
       if (!(file instanceof import_obsidian6.TFile) || file.extension !== "md") return;
       this.index.upsert(this.port.entry(file));
-      this.reviewCache.delete(file.path);
       if (this.index.has(file.path)) this.requestRefresh();
     };
     this.registerEvent(this.app.vault.on("create", update));
@@ -2142,13 +1764,11 @@ var LifeArchive = class extends import_obsidian6.Plugin {
     this.registerEvent(this.app.vault.on("delete", (file) => {
       const relevant = this.index.has(file.path);
       this.index.remove(file.path);
-      this.reviewCache.delete(file.path);
       if (relevant) this.requestRefresh();
     }));
     this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
       const relevant = this.index.has(oldPath);
       this.index.remove(oldPath);
-      this.reviewCache.delete(oldPath);
       update(file);
       if (relevant) this.requestRefresh();
     }));
@@ -2171,9 +1791,9 @@ var LifeArchive = class extends import_obsidian6.Plugin {
         void this.openHome();
       }
     });
-    let lastDay = today(this.config.timezone);
+    let lastDay = today();
     this.registerInterval(window.setInterval(() => {
-      const day = today(this.config.timezone);
+      const day = today();
       if (day !== lastDay) {
         lastDay = day;
         this.requestRefresh();
@@ -2181,8 +1801,6 @@ var LifeArchive = class extends import_obsidian6.Plugin {
     }, 6e4));
     this.register(() => {
       if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
-      for (const child of this.children) child.kill("SIGTERM");
-      this.children.clear();
     });
     this.app.workspace.onLayoutReady(() => {
       void this.initialize().catch((e) => new import_obsidian6.Notice(`\u4EBA\u751F\u5B58\u6863\u521D\u59CB\u5316\u5931\u8D25\uFF1A${e.message}`));
@@ -2265,22 +1883,6 @@ var LifeArchive = class extends import_obsidian6.Plugin {
       });
     }, 120);
   }
-  async latestReview() {
-    let errors = 0;
-    for (const entry of this.index.aiReviews().slice(0, 36)) {
-      try {
-        let cached = this.reviewCache.get(entry.path);
-        if (!cached || cached.mtime !== entry.mtime) {
-          cached = { mtime: entry.mtime, display: parseReview(await this.port.read(entry.path)) };
-          this.reviewCache.set(entry.path, cached);
-        }
-        if (cached.display) return { review: { month: entry.path.split("/").at(-1).slice(0, -3), path: entry.path, display: cached.display }, errors };
-      } catch {
-      }
-      errors++;
-    }
-    return { review: null, errors };
-  }
   async updateConfig(value) {
     const config = loadConfig(value), notes = new NoteService(config, this.port);
     await notes.initialize();
@@ -2290,15 +1892,11 @@ var LifeArchive = class extends import_obsidian6.Plugin {
     this.index = new ArchiveIndex(config);
     this.refreshWritingGuide?.();
     this.index.reset(this.app.vault.getMarkdownFiles().map((file) => this.port.entry(file)));
-    this.reviewCache.clear();
     this.requestRefresh();
     this.scheduleGitHubSync();
   }
   newThought() {
     new ThoughtModal(this).open();
-  }
-  review() {
-    new ReviewModal(this).open();
   }
   help() {
     new HelpModal(this.app).open();
@@ -2311,38 +1909,5 @@ var LifeArchive = class extends import_obsidian6.Plugin {
     const app = this.app;
     app.setting?.open();
     app.setting?.openTabById(this.manifest.id);
-  }
-  async runCli(args) {
-    const adapter = this.app.vault.adapter;
-    if (!(adapter instanceof import_obsidian6.FileSystemAdapter)) return Promise.reject(new Error("AI \u590D\u76D8\u5DE5\u5177\u9700\u8981\u684C\u9762\u672C\u5730\u7B14\u8BB0\u5E93"));
-    const base = adapter.getBasePath(), dir = this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`;
-    const script = (0, import_node_path3.join)(base, dir, "review.cjs");
-    const node = await nodeExecutable(this.config.nodePath);
-    return new Promise((resolve, reject) => {
-      const child = (0, import_node_child_process2.execFile)(node, [script, ...args, "--vault", base, "--config-dir", this.app.vault.configDir], {
-        env: { ...process.env },
-        cwd: base,
-        timeout: 11 * 6e4,
-        maxBuffer: 2e6,
-        windowsHide: true
-      }, (error, stdout, stderr) => {
-        this.children.delete(child);
-        if (error) {
-          let reason = "\u590D\u76D8\u5DE5\u5177\u8FD0\u884C\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5 Codex \u5B89\u88C5\u548C\u8FD0\u884C\u8BB0\u5F55";
-          try {
-            reason = JSON.parse(stderr.trim()).reason ?? reason;
-          } catch {
-          }
-          reject(new Error(reason));
-          return;
-        }
-        try {
-          resolve(JSON.parse(stdout));
-        } catch {
-          reject(new Error("\u590D\u76D8\u5DE5\u5177\u6CA1\u6709\u8FD4\u56DE\u6709\u6548\u7684\u8FD0\u884C\u7ED3\u679C"));
-        }
-      });
-      this.children.add(child);
-    });
   }
 };
