@@ -22,6 +22,8 @@
 .la-home .la-primary:hover { filter: brightness(.94); }
 .la-home .la-secondary { min-height: 37px; height: auto; padding: 8px 13px; border: 1px solid var(--background-modifier-border); border-radius: 7px; background: transparent; color: var(--text-normal); box-shadow: none; font-size: 12px; }
 .la-home .la-secondary:hover { background: var(--background-modifier-hover); }
+.la-home .la-sync-button { display: grid; place-items: center; width: 38px; min-height: 38px; padding: 0; }
+.la-sync-button svg { width: 16px; height: 16px; }
 .la-stats { display: flex; align-items: center; flex-wrap: wrap; gap: 22px; padding: 13px 0 20px; border-bottom: 1px solid var(--background-modifier-border); color: var(--text-muted); font-size: 11px; }
 .la-stats strong { font-weight: 550; color: var(--text-normal); margin-right: 3px; }
 .la-stats .la-private { margin-left: auto; font-size: 10px; color: var(--text-faint); }

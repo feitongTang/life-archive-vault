@@ -1166,6 +1166,8 @@ function mountHome(container, model, actions) {
   const topActions = el(header, "div", "la-header-actions");
   button(topActions, "\u6253\u5F00\u4ECA\u5929\u7684\u7B14\u8BB0  \u2197", "today", "la-primary");
   button(topActions, "\uFF0B \u5199\u7BC7\u601D\u60F3", "thought", "la-secondary");
+  const sync = button(topActions, "", "sync-github", "la-secondary la-sync-button", "\u7ACB\u5373\u540C\u6B65 GitHub");
+  sync.title = "\u7ACB\u5373\u540C\u6B65 GitHub";
   const status = el(root, "div", "la-stats");
   const hasPeriod = (period) => periodNotePaths(period, model.config).some((path) => model.paths.has(path));
   const recordedDays = /* @__PURE__ */ new Set();
@@ -1328,6 +1330,9 @@ function mountHome(container, model, actions) {
         case "thought":
           perform(actions.openThought());
           break;
+        case "sync-github":
+          perform(actions.syncGitHub());
+          break;
         case "file":
           perform(actions.openFile(b.dataset.path));
           break;
@@ -1450,6 +1455,7 @@ var HomeView = class extends import_obsidian2.ItemView {
     }, {
       openPeriod: (kind, date) => this.plugin.notes.openPeriod(kind, date),
       openThought: () => this.plugin.newThought(),
+      syncGitHub: () => this.plugin.syncGitHub(true),
       openFile: (path) => this.plugin.port.open(path),
       changeMonth: (month, focusDate) => {
         this.month = month;
@@ -1462,6 +1468,8 @@ var HomeView = class extends import_obsidian2.ItemView {
       help: () => this.plugin.help(),
       error: (message) => new import_obsidian2.Notice(message)
     });
+    const syncButton = this.contentEl.querySelector('[data-action="sync-github"]');
+    if (syncButton) (0, import_obsidian2.setIcon)(syncButton, "refresh-cw");
     this.contentEl.scrollTop = scroll;
     if (oldDate && !this.focusDate) this.contentEl.querySelector(`[data-date="${oldDate}"]`)?.focus({ preventScroll: true });
     else if (oldAction && ["prev", "next", "this-month"].includes(oldAction)) this.contentEl.querySelector(`[data-action="${oldAction}"]`)?.focus({ preventScroll: true });
