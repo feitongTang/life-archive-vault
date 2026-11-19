@@ -13,11 +13,11 @@
 
 | 内容 | 路径 |
 | --- | --- |
-| 日笔记 | `0. PeriodicNotes/YYYY/Daily/MM/YYYY-MM-DD.md` |
-| 周笔记 | `0. PeriodicNotes/YYYY/Weekly/YYYY-Www.md` |
-| 月笔记 | `0. PeriodicNotes/YYYY/Monthly/YYYY-MM.md` |
-| 季笔记 | `0. PeriodicNotes/YYYY/Quarterly/YYYY-Qq.md` |
-| 年笔记 | `0. PeriodicNotes/YYYY/YYYY.md` |
+| 日笔记 | `周期笔记/YYYY/Daily/MM/YYYY-MM-DD.md` |
+| 周笔记 | `周期笔记/YYYY/Weekly/YYYY-Www.md` |
+| 月笔记 | `周期笔记/YYYY/Monthly/YYYY-MM.md` |
+| 季笔记 | `周期笔记/YYYY/Quarterly/YYYY-Qq.md` |
+| 年笔记 | `周期笔记/YYYY/YYYY.md` |
 | 思想文章 | `思想/标题.md` |
 | 模板 | `模板/Daily.md`、`模板/Weekly.md` 等 |
 

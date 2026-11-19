@@ -652,7 +652,7 @@ var import_obsidian6 = require("obsidian");
 
 // src/core/config.ts
 var PERIOD_KINDS = ["daily", "weekly", "monthly", "quarterly", "yearly"];
-var PERIOD_ROOT = "0. PeriodicNotes";
+var PERIOD_ROOT = "\u5468\u671F\u7B14\u8BB0";
 var PERIOD_TYPES = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", quarterly: "Quarterly" };
 var OLD_TYPES = { daily: "\u65E5", weekly: "\u5468", monthly: "\u6708", quarterly: "\u5B63", yearly: "\u5E74" };
 var PATHS = { thoughts: "\u601D\u60F3", templates: "\u6A21\u677F" };
@@ -681,7 +681,7 @@ function loadConfig(input = {}) {
   if (raw.schemaVersion !== void 0 && raw.schemaVersion !== 1) throw new Error("\u4E0D\u652F\u6301\u7684\u914D\u7F6E\u7248\u672C");
   const inputPaths = raw.paths === void 0 ? {} : record(raw.paths);
   const paths = Object.fromEntries(Object.entries(PATHS).map(([kind, fallback]) => [kind, safePath(inputPaths[kind] ?? fallback)]));
-  const roots = [PERIOD_ROOT, "\u5468\u671F\u7B14\u8BB0", "\u65E5\u8BB0", paths.thoughts, paths.templates].map(canonical);
+  const roots = [PERIOD_ROOT, "\u65E5\u8BB0", paths.thoughts, paths.templates].map(canonical);
   for (const [index, root] of roots.entries()) {
     for (const other of roots.slice(index + 1)) {
       if (overlaps(root, other)) throw new Error(`\u5185\u5BB9\u76EE\u5F55\u4E0D\u80FD\u91CD\u53E0\uFF1A${root} / ${other}`);
@@ -1521,7 +1521,7 @@ var ArchiveSettings = class extends import_obsidian4.PluginSettingTab {
       draft.openOnStartup = v;
     }));
     root.createEl("h3", { text: "\u7B14\u8BB0\u76EE\u5F55" });
-    new import_obsidian4.Setting(root).setName("\u5468\u671F\u7B14\u8BB0").setDesc("\u6309\u5E74\u4EFD\u5B58\u653E\u4E8E 0. PeriodicNotes\u3002\u65E5\u7B14\u8BB0\u518D\u6309\u6708\u4EFD\u5F52\u6863\u3002");
+    new import_obsidian4.Setting(root).setName("\u5468\u671F\u7B14\u8BB0").setDesc("\u6309\u5E74\u4EFD\u5B58\u653E\u4E8E \u5468\u671F\u7B14\u8BB0\u3002\u65E5\u7B14\u8BB0\u518D\u6309\u6708\u4EFD\u5F52\u6863\u3002");
     const names = { thoughts: "\u601D\u60F3\u6587\u7AE0", templates: "\u6A21\u677F\u76EE\u5F55" };
     for (const kind of Object.keys(names)) new import_obsidian4.Setting(root).setName(names[kind]).addText((t) => t.setValue(draft.paths[kind]).onChange((value) => {
       const old = draft.paths[kind];
