@@ -1140,12 +1140,13 @@ function mountHome(container, model, actions) {
   el(legend, "span", "la-legend-today");
   el(legend, "span", "", "\u4ECA\u5929");
   const periods = el(calendar, "div", "la-periods");
+  const longPeriodLabels = { monthly: "\u6708\u5EA6\u7B14\u8BB0", quarterly: "\u5B63\u5EA6\u7B14\u8BB0", yearly: "\u5E74\u5EA6\u7B14\u8BB0" };
   for (const kind of ["monthly", "quarterly", "yearly"]) {
     const p = periodFor(kind, `${model.month}-01`);
     const exists = hasPeriod(p);
-    const b = button(periods, PERIOD_LABELS[kind], "period", "la-period-button");
+    const b = button(periods, longPeriodLabels[kind], "period", "la-period-button");
     b.dataset.kind = kind;
-    b.setAttribute("aria-label", `${p.key} \xB7 ${exists ? "\u6253\u5F00\u5DF2\u6709\u7B14\u8BB0" : "\u6309\u6A21\u677F\u521B\u5EFA"}`);
+    b.setAttribute("aria-label", `${longPeriodLabels[kind]} \xB7 ${p.key} \xB7 ${exists ? "\u6253\u5F00\u5DF2\u6709\u7B14\u8BB0" : "\u6309\u6A21\u677F\u521B\u5EFA"}`);
     el(b, "span", "la-period-state", exists ? "\u5DF2\u8BB0\u5F55 \u2197" : "\u5F85\u8BB0\u5F55 \uFF0B");
   }
   const noteStack = el(grid, "div", "la-note-stack");
