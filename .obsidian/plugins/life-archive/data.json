@@ -13,11 +13,11 @@
     "templates": "模板"
   },
   "templates": {
-    "daily": "模板/日笔记.md",
-    "weekly": "模板/周笔记.md",
-    "monthly": "模板/月笔记.md",
-    "quarterly": "模板/季笔记.md",
-    "yearly": "模板/年笔记.md",
+    "daily": "模板/Daily.md",
+    "weekly": "模板/Weekly.md",
+    "monthly": "模板/Monthly.md",
+    "quarterly": "模板/Quarterly.md",
+    "yearly": "模板/Yearly.md",
     "thought": "模板/思想文章.md"
   },
   "openOnStartup": true,

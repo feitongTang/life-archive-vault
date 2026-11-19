@@ -22,9 +22,9 @@
 | 周期笔记 | `周期笔记/日/YYYY-MM-DD.md`、`周期笔记/周/YYYY-Www.md`、`周期笔记/月/YYYY-MM.md`、`周期笔记/季/YYYY-Qq.md`、`周期笔记/年/YYYY.md` |
 | 思想文章 | `思想/标题.md` |
 | AI 草稿 | `复盘/AI/YYYY-MM.md` |
-| 模板 | `模板/日笔记.md` 等六份模板 |
+| 模板 | 当前笔记库使用 `模板/Daily.md`、`模板/Weekly.md` 等周期模板 |
 
-目录和模板可配置。初始化只补齐缺失项，已有文件保留。使用默认周期目录时，日历也识别旧版的平铺周期笔记、日记和复盘路径，点击时优先打开已有笔记。默认模板以文件名作为标题。自定义模板支持 `{{date}}`、`{{title}}`、`{{period}}`、`{{start}}`、`{{end}}`、`{{monthNote}}`、`{{aiNote}}`。首次可从兼容的 Daily Notes / Periodic Notes / Calendar 设置导入目录和普通模板；脚本模板不自动执行。
+设置页只显示当前笔记库约定的周期目录，不提供归档方式切换或目录导入。其他目录和模板仍可配置。初始化只补齐缺失项，已有文件保留。日历仍识别旧版的平铺周期笔记、日记和复盘路径。默认模板以文件名作为标题。自定义模板支持 `{{date}}`、`{{title}}`、`{{period}}`、`{{start}}`、`{{end}}`、`{{monthNote}}`、`{{aiNote}}`。
 
 插件设置与 CLI 共用 `.obsidian/plugins/life-archive/data.json`。自定义配置目录时，插件自动传递该目录；独立 CLI 请附上 `--config-dir 配置目录名`。支持桌面 Obsidian 1.8.7 以上；独立工具需要 Node.js 22 以上，设置中可指定 Node 路径；AI 生成还需已登录的 Codex CLI。
 
