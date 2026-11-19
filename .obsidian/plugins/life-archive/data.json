@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "timezone": "Asia/Shanghai",
-  "periodLayout": "annual",
+  "periodLayout": "lifeos",
   "paths": {
     "daily": "周期笔记/日",
     "thoughts": "思想",
