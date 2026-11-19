@@ -1931,6 +1931,10 @@ var import_promises2 = require("node:fs/promises");
 var import_node_path2 = require("node:path");
 var import_node_util = require("node:util");
 var execute = (0, import_node_util.promisify)(import_node_child_process.execFile);
+function githubRepository(url) {
+  const match = /^(?:git@github\.com:|https:\/\/github\.com\/)([\w.-]+\/[\w.-]+)$/i.exec(url);
+  return match?.[1]?.replace(/\.git$/i, "").toLowerCase();
+}
 async function syncVault(root, remote) {
   const git = async (args, failure, allowed = [0]) => {
     try {
@@ -1962,15 +1966,20 @@ async function syncVault(root, remote) {
   if (await (0, import_promises2.realpath)(base.output) !== await (0, import_promises2.realpath)(root)) throw new Error("Git \u4ED3\u5E93\u6839\u76EE\u5F55\u4E0E Vault \u4E0D\u4E00\u81F4");
   const branch = await git(["branch", "--show-current"], "\u65E0\u6CD5\u8BFB\u53D6\u5F53\u524D Git \u5206\u652F");
   if (branch.output !== "main") throw new Error("\u8BF7\u5207\u6362\u5230 main \u5206\u652F\u540E\u540C\u6B65");
+  const merge = await git(["rev-parse", "--quiet", "--verify", "MERGE_HEAD"], "\u65E0\u6CD5\u68C0\u67E5\u5DF2\u6709\u5408\u5E76", [0, 1]);
+  if (merge.code === 0) throw new Error("\u8BF7\u5148\u5904\u7406\u5DF2\u5F00\u59CB\u7684 Git \u5408\u5E76\uFF0C\u518D\u91CD\u65B0\u540C\u6B65");
   const origins = await git(["remote"], "\u65E0\u6CD5\u8BFB\u53D6 Git \u8FDC\u7AEF");
   if (!origins.output.split("\n").includes("origin")) {
-    const head = await git(["rev-parse", "--quiet", "--verify", "HEAD"], "\u65E0\u6CD5\u8BFB\u53D6\u63D0\u4EA4\u5386\u53F2", [0, 1]);
-    if (head.code === 0) throw new Error("\u5DF2\u6709 Git \u5386\u53F2\uFF0C\u9700\u5148\u6838\u5BF9 origin");
+    const head2 = await git(["rev-parse", "--quiet", "--verify", "HEAD"], "\u65E0\u6CD5\u8BFB\u53D6\u63D0\u4EA4\u5386\u53F2", [0, 1]);
+    if (head2.code === 0) throw new Error("\u5DF2\u6709 Git \u5386\u53F2\uFF0C\u9700\u5148\u6838\u5BF9 origin");
     await git(["remote", "add", "origin", remote], "\u65E0\u6CD5\u8BBE\u7F6E GitHub \u8FDC\u7AEF");
   }
   for (const mode of [[], ["--push"]]) {
     const urls = await git(["remote", "get-url", ...mode, "--all", "origin"], "\u65E0\u6CD5\u8BFB\u53D6 origin \u5730\u5740");
-    if (urls.output !== remote) throw new Error("Git \u7684 origin \u4E0E\u4EBA\u751F\u5B58\u6863\u8BBE\u7F6E\u4E0D\u4E00\u81F4");
+    const repository = githubRepository(urls.output);
+    if (urls.output !== remote && (!repository || repository !== githubRepository(remote))) {
+      throw new Error("Git \u7684 origin \u4E0E\u4EBA\u751F\u5B58\u6863\u8BBE\u7F6E\u4E0D\u4E00\u81F4");
+    }
   }
   await git(["fetch", "--prune", "origin"], "\u65E0\u6CD5\u8FDE\u63A5\u79C1\u6709\u4ED3\u5E93\uFF0C\u8BF7\u68C0\u67E5 GitHub \u767B\u5F55\u548C\u7F51\u7EDC");
   await git(["add", "--all"], "\u65E0\u6CD5\u6682\u5B58 Vault \u6587\u4EF6");
@@ -1978,10 +1987,20 @@ async function syncVault(root, remote) {
   if (changes.code === 1) await git(["commit", "-m", "\u540C\u6B65\u4EBA\u751F\u5B58\u6863"], "\u65E0\u6CD5\u63D0\u4EA4 Vault \u53D8\u66F4\uFF0C\u8BF7\u68C0\u67E5 Git \u4F5C\u8005\u8BBE\u7F6E");
   const local = await git(["rev-parse", "--quiet", "--verify", "HEAD"], "\u65E0\u6CD5\u8BFB\u53D6\u672C\u5730\u63D0\u4EA4", [0, 1]);
   const upstream = await git(["rev-parse", "--quiet", "--verify", "refs/remotes/origin/main"], "\u65E0\u6CD5\u8BFB\u53D6\u8FDC\u7AEF\u63D0\u4EA4", [0, 1]);
-  if (upstream.code === 0) {
-    await git(["merge", "--ff-only", upstream.output], "\u672C\u5730\u4E0E GitHub \u5206\u53C9\uFF0C\u6216\u6709\u672A\u4FDD\u5B58\u53D8\u66F4\u3002\u53CC\u65B9\u6587\u4EF6\u548C\u63D0\u4EA4\u5DF2\u4FDD\u7559");
+  if (upstream.code === 0 && local.output !== upstream.output) {
+    let strategy = "--ff-only";
+    if (local.code === 0) {
+      const counts = await git(["rev-list", "--left-right", "--count", "HEAD..." + upstream.output], "\u65E0\u6CD5\u6BD4\u8F83\u672C\u5730\u4E0E GitHub \u7684\u63D0\u4EA4");
+      const [localOnly, remoteOnly] = counts.output.split(/\s+/).map(Number);
+      if (localOnly && remoteOnly) {
+        await git(["merge-tree", "--write-tree", "HEAD", upstream.output], "\u672C\u5730\u4E0E GitHub \u7684\u6539\u52A8\u5B58\u5728\u51B2\u7A81\u6216\u65E0\u6CD5\u81EA\u52A8\u5408\u5E76\u3002\u53CC\u65B9\u63D0\u4EA4\u5DF2\u4FDD\u7559");
+        strategy = "--ff";
+      }
+    }
+    await git(["merge", strategy, "--no-edit", "--no-autostash", upstream.output], "\u65E0\u6CD5\u6574\u5408 GitHub \u66F4\u65B0\uFF0C\u8BF7\u68C0\u67E5\u672C\u5730\u4FEE\u6539\u540E\u91CD\u8BD5");
   }
-  if (local.code === 0 && local.output !== upstream.output) {
+  const head = await git(["rev-parse", "--quiet", "--verify", "HEAD"], "\u65E0\u6CD5\u786E\u8BA4\u6574\u5408\u540E\u7684\u672C\u5730\u63D0\u4EA4", [0, 1]);
+  if (head.code === 0 && head.output !== upstream.output) {
     await git(["push", "origin", "HEAD:refs/heads/main"], "\u63A8\u9001\u672A\u5B8C\u6210\uFF0C\u53EF\u80FD\u6709\u5E76\u53D1\u66F4\u65B0\u6216\u8FDE\u63A5\u4E2D\u65AD\u3002\u8BF7\u91CD\u8BD5\u540C\u6B65");
   }
 }
