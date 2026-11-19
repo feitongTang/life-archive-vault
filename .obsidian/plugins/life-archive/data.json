@@ -1,15 +1,7 @@
 {
   "schemaVersion": 1,
-  "timezone": "Asia/Shanghai",
-  "periodLayout": "lifeos",
   "paths": {
-    "daily": "周期笔记/日",
     "thoughts": "思想",
-    "weekly": "周期笔记/周",
-    "monthly": "周期笔记/月",
-    "quarterly": "周期笔记/季",
-    "yearly": "周期笔记/年",
-    "ai": "复盘/AI",
     "templates": "模板"
   },
   "templates": {
@@ -21,8 +13,5 @@
     "thought": "模板/思想文章.md"
   },
   "openOnStartup": true,
-  "codexPath": "codex",
-  "nodePath": "node",
-  "extraReadFolders": [],
   "githubRemote": "git@github.com:feitongTang/life-archive-vault.git"
 }
