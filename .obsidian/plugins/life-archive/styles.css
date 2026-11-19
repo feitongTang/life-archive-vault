@@ -127,11 +127,54 @@
   .la-footer { align-items: flex-start; flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) { .life-archive-view * { scroll-behavior: auto !important; } }
+.view-action.la-guide-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding-inline: 7px;
+  white-space: nowrap;
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  font-weight: 550;
+}
+.la-guide-action svg { flex: none; }
 .life-archive-writing-guide {
-  padding: var(--size-4-4);
+  --la-guide-accent: #437564;
+  padding: 0;
   overflow: auto;
 }
-.life-archive-writing-guide h2 { margin-top: 0; }
-.life-archive-writing-guide h3 { margin-bottom: var(--size-4-2); }
-.life-archive-writing-guide ul { margin-top: 0; padding-inline-start: var(--size-4-5); }
-.life-archive-writing-guide li + li { margin-top: var(--size-4-2); }
+.theme-dark .life-archive-writing-guide { --la-guide-accent: #9ac7b3; }
+.la-guide-panel {
+  display: grid;
+  gap: 12px;
+  max-width: 420px;
+  margin-inline: auto;
+  padding: 18px 14px 24px;
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+  overflow-wrap: anywhere;
+}
+.la-guide-header {
+  display: grid;
+  gap: 6px;
+  padding: 13px 14px;
+  background: color-mix(in srgb, var(--la-guide-accent) 9%, var(--background-primary));
+  border-radius: 9px;
+}
+.la-guide-kicker { margin: 0; color: var(--la-guide-accent); font-size: 11px; font-weight: 650; letter-spacing: .08em; }
+.la-guide-title { margin: 0; font-size: 19px; line-height: 1.35; font-weight: 650; }
+.la-guide-hint { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.55; }
+.la-guide-card {
+  min-width: 0;
+  padding: 12px 14px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 9px;
+}
+.la-guide-card-title { margin: 0 0 6px; font-size: 14px; line-height: 1.4; font-weight: 650; }
+.la-guide-copy { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+.la-guide-prompts { margin: 0; padding: 0; list-style: none; }
+.la-guide-row { display: grid; grid-template-columns: 3em minmax(0, 1fr); align-items: baseline; gap: 8px; padding: 8px 0; font-size: 12px; }
+.la-guide-row + .la-guide-row { border-top: 1px solid var(--background-modifier-border); }
+.la-guide-row:last-child { padding-bottom: 0; }
+.la-guide-label { color: var(--la-guide-accent); font-weight: 650; }

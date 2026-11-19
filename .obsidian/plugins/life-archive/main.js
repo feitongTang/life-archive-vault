@@ -1499,8 +1499,13 @@ var import_obsidian3 = require("obsidian");
 // src/ui/writing-guide.ts
 var guides = {
   daily: [
-    ["\u4ECA\u5929\u53D1\u751F\u7684\u4E8B", ["\u60F3\u5199\u5C31\u5199\uFF1A\u53D1\u751F\u4E86\u4EC0\u4E48\u3001\u5F53\u65F6\u600E\u4E48\u60F3\u3001\u4E3A\u4EC0\u4E48\u5728\u610F\u3002"]],
-    ["\u6BCF\u65E5\u901F\u8BB0", ["\u8FDB\u5C55\uFF1A\u4EC0\u4E48\u63A8\u8FDB\u4E86\uFF0C\u6216\u505A\u4E86\u4EC0\u4E48\u51B3\u5B9A\uFF1F", "\u963B\u529B\uFF1A\u5361\u5728\u54EA\u91CC\uFF0C\u4EC0\u4E48\u6CA1\u6309\u9884\u671F\u8D70\uFF1F", "\u53D8\u5316\uFF1A\u6709\u4EC0\u4E48\u53D1\u73B0\u3001\u5E2E\u52A9\u6216\u72B6\u6001\u503C\u5F97\u4E0B\u6B21\u7559\u610F\uFF1F", "\u5173\u6CE8\u9879\uFF1A\u5982\u679C\u8FD9\u6BB5\u65F6\u95F4\u5728\u8FFD\u8E2A\u4E00\u4EF6\u4E8B\uFF0C\u4ECA\u5929\u5B9E\u9645\u600E\u6837\uFF1F"]]
+    ["\u4ECA\u5929\u53D1\u751F\u7684\u4E8B", ["\u53D1\u751F\u4E86\u4EC0\u4E48\uFF1F\u5F53\u65F6\u600E\u4E48\u60F3\uFF1F\u60F3\u5199\u591A\u5C11\u90FD\u53EF\u4EE5\u3002"]],
+    ["\u6BCF\u65E5\u901F\u8BB0", [
+      ["\u8FDB\u5C55", "\u4EC0\u4E48\u63A8\u8FDB\u4E86\uFF0C\u6216\u505A\u4E86\u4EC0\u4E48\u51B3\u5B9A\uFF1F"],
+      ["\u963B\u529B", "\u5361\u5728\u54EA\u91CC\uFF1F\u4EC0\u4E48\u6CA1\u6309\u9884\u671F\u8D70\uFF1F"],
+      ["\u53D8\u5316", "\u6709\u4EC0\u4E48\u53D1\u73B0\u6216\u53D8\u5316\u503C\u5F97\u4E0B\u6B21\u7559\u610F\uFF1F"],
+      ["\u5173\u6CE8\u9879", "\u5982\u679C\u6700\u8FD1\u5728\u8FFD\u8E2A\u4E00\u4EF6\u4E8B\uFF0C\u4ECA\u5929\u5B9E\u9645\u600E\u6837\uFF1F"]
+    ]]
   ],
   weekly: [
     ["\u672C\u5468\u56DE\u770B", ["\u54EA\u4E00\u4E24\u4EF6\u4E8B\u6700\u503C\u5F97\u8BB0\u4F4F\uFF1F\u6709\u4EC0\u4E48\u8BC1\u636E\u6216\u4F8B\u5B50\uFF1F"]],
@@ -1531,30 +1536,47 @@ function writingGuideKind(path, config) {
 }
 function renderWritingGuide(root, path, config) {
   const kind = writingGuideKind(path, config);
-  const append = (parent, tag, text) => {
+  const append = (parent, tag, className, text) => {
     const element = root.ownerDocument.createElement(tag);
+    element.className = className;
     if (text) element.textContent = text;
     parent.append(element);
     return element;
   };
   root.replaceChildren();
+  const panel = append(root, "div", "la-guide-panel");
+  const header = append(panel, "header", "la-guide-header");
+  append(header, "p", "la-guide-kicker", "\u5199\u4F5C\u63D0\u793A");
   if (!kind) {
-    append(root, "p", "\u6253\u5F00\u4E00\u7BC7\u5468\u671F\u7B14\u8BB0\uFF0C\u8FD9\u91CC\u4F1A\u663E\u793A\u5BF9\u5E94\u7684\u5199\u4F5C\u63D0\u793A\u3002");
+    append(header, "p", "la-guide-hint", "\u6253\u5F00\u4E00\u7BC7\u5468\u671F\u7B14\u8BB0\uFF0C\u8FD9\u91CC\u4F1A\u663E\u793A\u5BF9\u5E94\u7684\u5199\u4F5C\u63D0\u793A\u3002");
     return;
   }
-  append(root, "h2", PERIOD_LABELS[kind]);
-  append(root, "p", kind === "daily" ? "\u6311\u6709\u5185\u5BB9\u7684\u5199\u4E00\u4E24\u53E5\uFF0C\u4E0D\u7528\u5957\u683C\u5F0F\u6216\u9010\u9879\u56DE\u7B54\u3002\u4E0A\u9762\u5199\u8FC7\u7684\u4E0D\u7528\u518D\u6284\u3002" : "\u6311\u6709\u7528\u7684\u5199\uFF0C\u4E0D\u7528\u9010\u9879\u56DE\u7B54\u3002");
+  append(header, "h2", "la-guide-title", PERIOD_LABELS[kind]);
+  append(header, "p", "la-guide-hint", kind === "daily" ? "\u6311\u4E00\u4E24\u9879\u968F\u624B\u5199\uFF0C\u4E0D\u7528\u9010\u9879\u56DE\u7B54\u3002" : "\u6311\u6709\u7528\u7684\u5199\uFF0C\u4E0D\u7528\u9010\u9879\u56DE\u7B54\u3002");
   for (const [title, prompts] of guides[kind]) {
-    append(root, "h3", title);
-    const list = append(root, "ul");
-    for (const prompt of prompts) append(list, "li", prompt);
+    const card = append(panel, "section", "la-guide-card");
+    append(card, "h3", "la-guide-card-title", title);
+    const first = prompts[0];
+    if (prompts.length === 1 && typeof first === "string") {
+      append(card, "p", "la-guide-copy", first);
+      continue;
+    }
+    const list = append(card, "ul", "la-guide-prompts");
+    for (const prompt of prompts) {
+      if (typeof prompt === "string") append(list, "li", "la-guide-copy", prompt);
+      else {
+        const row = append(list, "li", "la-guide-row");
+        append(row, "strong", "la-guide-label", prompt[0]);
+        append(row, "span", "la-guide-copy", prompt[1]);
+      }
+    }
   }
 }
 
 // src/obsidian/writing-guide-view.ts
 var VIEW_TYPE = "life-archive-writing-guide";
 var TITLE = "\u5199\u4F5C\u63D0\u793A";
-var ICON = "list-bullet";
+var ICON = "notebook-pen";
 var WritingGuideView = class extends import_obsidian3.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -1602,9 +1624,14 @@ function registerWritingGuide(plugin) {
       const view2 = leaf.view;
       if (!(view2 instanceof import_obsidian3.MarkdownView) || !writingGuideKind(view2.file?.path ?? null, plugin.config)) continue;
       views.add(view2);
-      if (!actions.has(view2)) actions.set(view2, view2.addAction(ICON, TITLE, () => {
-        if (view2.file && writingGuideKind(view2.file.path, plugin.config)) show(view2.file.path);
-      }));
+      if (!actions.has(view2)) {
+        const action = view2.addAction(ICON, TITLE, () => {
+          if (view2.file && writingGuideKind(view2.file.path, plugin.config)) show(view2.file.path);
+        });
+        action.addClass("la-guide-action");
+        action.createSpan({ text: TITLE, attr: { "aria-hidden": "true" } });
+        actions.set(view2, action);
+      }
     }
     for (const [view2, action] of actions) {
       if (!views.has(view2)) {
