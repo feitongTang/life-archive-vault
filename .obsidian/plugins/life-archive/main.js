@@ -1123,6 +1123,16 @@ var ObsidianVault = class {
 var import_obsidian2 = require("obsidian");
 
 // src/ui/home.ts
+function renderSyncState(container, status) {
+  const button2 = container.querySelector('[data-action="sync-github"]');
+  if (!button2) return;
+  const label = status.state === "error" ? `GitHub \u540C\u6B65\u5931\u8D25\uFF1A${status.message}` : { idle: "\u7ACB\u5373\u540C\u6B65 GitHub", running: "\u6B63\u5728\u540C\u6B65 GitHub", success: "GitHub \u540C\u6B65\u5B8C\u6210" }[status.state];
+  button2.dataset.syncState = status.state;
+  button2.title = label;
+  button2.setAttribute("aria-label", label);
+  const live = container.querySelector(".la-sync-status");
+  if (live) live.textContent = status.state === "idle" ? "" : label;
+}
 function el(parent, tag, cls = "", text) {
   const child = parent.ownerDocument.createElement(tag);
   if (cls) child.className = cls;
@@ -1168,6 +1178,7 @@ function mountHome(container, model, actions) {
   button(topActions, "\uFF0B \u5199\u7BC7\u601D\u60F3", "thought", "la-secondary");
   const sync = button(topActions, "", "sync-github", "la-secondary la-sync-button", "\u7ACB\u5373\u540C\u6B65 GitHub");
   sync.title = "\u7ACB\u5373\u540C\u6B65 GitHub";
+  el(topActions, "span", "la-sync-status").setAttribute("role", "status");
   const status = el(root, "div", "la-stats");
   const hasPeriod = (period) => periodNotePaths(period, model.config).some((path) => model.paths.has(path));
   const recordedDays = /* @__PURE__ */ new Set();
@@ -1433,6 +1444,9 @@ var HomeView = class extends import_obsidian2.ItemView {
     this.dispose?.();
     this.contentEl.empty();
   }
+  updateSyncState(status) {
+    renderSyncState(this.contentEl, status);
+  }
   async refresh() {
     const generation = ++this.generation;
     const latest = await this.plugin.latestReview();
@@ -1470,6 +1484,7 @@ var HomeView = class extends import_obsidian2.ItemView {
     });
     const syncButton = this.contentEl.querySelector('[data-action="sync-github"]');
     if (syncButton) (0, import_obsidian2.setIcon)(syncButton, "refresh-cw");
+    this.updateSyncState(this.plugin.syncState);
     this.contentEl.scrollTop = scroll;
     if (oldDate && !this.focusDate) this.contentEl.querySelector(`[data-date="${oldDate}"]`)?.focus({ preventScroll: true });
     else if (oldAction && ["prev", "next", "this-month"].includes(oldAction)) this.contentEl.querySelector(`[data-action="${oldAction}"]`)?.focus({ preventScroll: true });
@@ -1983,7 +1998,8 @@ var LifeArchive = class extends import_obsidian6.Plugin {
   ready = false;
   syncTimer;
   syncJob;
-  syncError;
+  syncState = { state: "idle" };
+  syncFeedbackTimer;
   async onload() {
     try {
       this.config = loadConfig(await this.loadData() ?? {});
@@ -2090,7 +2106,18 @@ var LifeArchive = class extends import_obsidian6.Plugin {
   onunload() {
     this.ready = false;
     window.clearTimeout(this.syncTimer);
+    window.clearTimeout(this.syncFeedbackTimer);
     for (const leaf of this.app.workspace.getLeavesOfType(HOME_VIEW)) leaf.detach();
+  }
+  setSyncState(status) {
+    window.clearTimeout(this.syncFeedbackTimer);
+    this.syncState = status;
+    for (const leaf of this.app.workspace.getLeavesOfType(HOME_VIEW)) {
+      if (leaf.view instanceof HomeView) leaf.view.updateSyncState(status);
+    }
+    if (status.state === "success") {
+      this.syncFeedbackTimer = window.setTimeout(() => this.setSyncState({ state: "idle" }), 1800);
+    }
   }
   scheduleGitHubSync() {
     if (!this.ready || !this.config.githubRemote) return;
@@ -2103,25 +2130,23 @@ var LifeArchive = class extends import_obsidian6.Plugin {
     const remote = this.config.githubRemote;
     const adapter = this.app.vault.adapter;
     if (!remote || !(adapter instanceof import_obsidian6.FileSystemAdapter)) {
-      if (manual) new import_obsidian6.Notice("\u8BF7\u5728\u684C\u9762\u7248\u7684\u300C\u4EBA\u751F\u5B58\u6863\u300D\u8BBE\u7F6E\u4E2D\u586B\u5199 GitHub \u79C1\u6709\u4ED3\u5E93\u5730\u5740");
+      if (manual) this.setSyncState({ state: "error", message: "\u8BF7\u5728\u684C\u9762\u7248\u7684\u300C\u4EBA\u751F\u5B58\u6863\u300D\u8BBE\u7F6E\u4E2D\u586B\u5199 GitHub \u79C1\u6709\u4ED3\u5E93\u5730\u5740" });
       return;
     }
     window.clearTimeout(this.syncTimer);
     if (this.syncJob) {
       this.scheduleGitHubSync();
-      if (manual) new import_obsidian6.Notice("GitHub \u6B63\u5728\u540C\u6B65\uFF0C\u5DF2\u5B89\u6392\u518D\u6B21\u68C0\u67E5");
       return;
     }
     const job = syncVault(adapter.getBasePath(), remote);
     this.syncJob = job;
+    this.setSyncState({ state: "running" });
     try {
       await job;
-      this.syncError = void 0;
-      if (manual) new import_obsidian6.Notice("GitHub \u540C\u6B65\u5B8C\u6210");
+      if (this.ready) this.setSyncState({ state: "success" });
     } catch (error) {
       const message = error instanceof Error ? error.message : "\u540C\u6B65\u5931\u8D25";
-      if (manual || message !== this.syncError) new import_obsidian6.Notice(`GitHub \u540C\u6B65\uFF1A${message}`);
-      this.syncError = message;
+      if (this.ready) this.setSyncState({ state: "error", message });
     } finally {
       this.syncJob = void 0;
     }

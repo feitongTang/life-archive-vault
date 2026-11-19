@@ -24,6 +24,14 @@
 .la-home .la-secondary:hover { background: var(--background-modifier-hover); }
 .la-home .la-sync-button { display: grid; place-items: center; width: 38px; min-height: 38px; padding: 0; }
 .la-sync-button svg { width: 16px; height: 16px; }
+.la-home .la-sync-button[data-sync-state="running"],
+.la-home .la-sync-button[data-sync-state="success"] { color: var(--la-accent); background: var(--la-accent-soft); border-color: var(--la-accent); }
+.la-home .la-sync-button[data-sync-state="error"] { color: var(--text-error); border-color: var(--text-error); }
+.la-sync-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+@keyframes la-sync-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: no-preference) {
+  .la-sync-button[data-sync-state="running"] svg { animation: la-sync-spin 1s linear infinite; }
+}
 .la-stats { display: flex; align-items: center; flex-wrap: wrap; gap: 22px; padding: 13px 0 20px; border-bottom: 1px solid var(--background-modifier-border); color: var(--text-muted); font-size: 11px; }
 .la-stats strong { font-weight: 550; color: var(--text-normal); margin-right: 3px; }
 .la-stats .la-private { margin-left: auto; font-size: 10px; color: var(--text-faint); }
