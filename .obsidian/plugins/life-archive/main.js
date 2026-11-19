@@ -648,7 +648,7 @@ __export(main_exports, {
   default: () => LifeArchive
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 var import_node_child_process2 = require("node:child_process");
 var import_node_path3 = require("node:path");
 
@@ -877,7 +877,7 @@ function classifyNote(path, config) {
 
 // src/core/templates.ts
 var defaultTemplates = {
-  daily: "---\nai: read\n---\n\n## \u4ECA\u5929\u53D1\u751F\u4E86\u4EC0\u4E48\n\n\n\n## \u60F3\u6CD5\u4E0E\u611F\u53D7\n\n\n\n## \u503C\u5F97\u8BB0\u4F4F\n\n\n\n---\n[[{{monthNote}}|\u672C\u6708\u7B14\u8BB0]] \xB7 [[{{aiNote}}|AI \u6708\u5EA6\u8349\u7A3F]]\n",
+  daily: "---\nai: read\n---\n\n## \u4ECA\u5929\u53D1\u751F\u7684\u4E8B\n\n## \u6BCF\u65E5\u901F\u8BB0\n",
   weekly: "---\nai: read\n---\n\n## \u672C\u5468\u56DE\u770B\n\n\n\n## \u9884\u671F\u4E0E\u5B9E\u9645\n\n\n\n## \u4E0B\u5468\u7684\u4E00\u4EF6\u4E8B\n\n{{start}} \u2014 {{end}}\n\n[[{{monthNote}}|\u672C\u6708\u7B14\u8BB0]]\n",
   monthly: "---\nai: read\n---\n\n## \u8FD9\u4E2A\u6708\u53D1\u751F\u4E86\u4EC0\u4E48\n\n\n\n## \u60F3\u6CD5\u6709\u4EC0\u4E48\u53D8\u5316\n\n\n\n## \u505A\u8FC7\u7684\u9009\u62E9\n\n\n\n## \u4E0B\u4E2A\u6708\n\n{{start}} \u2014 {{end}}\n\n[[{{aiNote}}|\u67E5\u770B AI \u6708\u5EA6\u8349\u7A3F]]\n",
   quarterly: "---\nai: read\n---\n\n## \u8FD9\u4E00\u5B63\u7684\u4E3B\u7EBF\n\n\n\n## \u7ED3\u679C\u3001\u53D8\u5316\u4E0E\u53CD\u4F8B\n\n\n\n## \u4E0B\u4E00\u9636\u6BB5\n\n{{start}} \u2014 {{end}}\n",
@@ -1113,9 +1113,11 @@ var ObsidianVault = class {
   async open(path) {
     const file = this.app.vault.getFileByPath(path);
     if (!file) throw new Error(`\u7B14\u8BB0\u4E0D\u5B58\u5728\uFF1A${path}`);
-    const existing = this.app.workspace.getLeavesOfType("markdown").find((leaf) => leaf.getViewState().state?.file === path);
-    if (existing) await this.app.workspace.revealLeaf(existing);
-    else await this.app.workspace.getLeaf("tab").openFile(file);
+    const existing = this.app.workspace.getLeavesOfType("markdown").find((leaf2) => leaf2.getViewState().state?.file === path);
+    const leaf = existing ?? this.app.workspace.getLeaf("tab");
+    if (existing) await this.app.workspace.revealLeaf(leaf);
+    else await leaf.openFile(file);
+    this.app.workspace.setActiveLeaf(leaf, { focus: true });
   }
 };
 
@@ -1491,11 +1493,156 @@ var HomeView = class extends import_obsidian2.ItemView {
   }
 };
 
+// src/obsidian/writing-guide-view.ts
+var import_obsidian3 = require("obsidian");
+
+// src/ui/writing-guide.ts
+var guides = {
+  daily: [
+    ["\u4ECA\u5929\u53D1\u751F\u7684\u4E8B", ["\u60F3\u5199\u5C31\u5199\uFF1A\u53D1\u751F\u4E86\u4EC0\u4E48\u3001\u5F53\u65F6\u600E\u4E48\u60F3\u3001\u4E3A\u4EC0\u4E48\u5728\u610F\u3002"]],
+    ["\u6BCF\u65E5\u901F\u8BB0", ["\u8FDB\u5C55\uFF1A\u4EC0\u4E48\u63A8\u8FDB\u4E86\uFF0C\u6216\u505A\u4E86\u4EC0\u4E48\u51B3\u5B9A\uFF1F", "\u963B\u529B\uFF1A\u5361\u5728\u54EA\u91CC\uFF0C\u4EC0\u4E48\u6CA1\u6309\u9884\u671F\u8D70\uFF1F", "\u53D8\u5316\uFF1A\u6709\u4EC0\u4E48\u53D1\u73B0\u3001\u5E2E\u52A9\u6216\u72B6\u6001\u503C\u5F97\u4E0B\u6B21\u7559\u610F\uFF1F", "\u5173\u6CE8\u9879\uFF1A\u5982\u679C\u8FD9\u6BB5\u65F6\u95F4\u5728\u8FFD\u8E2A\u4E00\u4EF6\u4E8B\uFF0C\u4ECA\u5929\u5B9E\u9645\u600E\u6837\uFF1F"]]
+  ],
+  weekly: [
+    ["\u672C\u5468\u56DE\u770B", ["\u54EA\u4E00\u4E24\u4EF6\u4E8B\u6700\u503C\u5F97\u8BB0\u4F4F\uFF1F\u6709\u4EC0\u4E48\u8BC1\u636E\u6216\u4F8B\u5B50\uFF1F"]],
+    ["\u9884\u671F\u4E0E\u5B9E\u9645", ["\u539F\u6765\u60F3\u505A\u5230\u4EC0\u4E48\uFF0C\u5B9E\u9645\u600E\u6837\uFF1F\u6CA1\u8BBE\u76EE\u6807\u5C31\u8DF3\u8FC7\u3002"]],
+    ["\u4E0B\u5468\u7684\u4E00\u4EF6\u4E8B", ["\u53EA\u8BD5\u4E00\u4E2A\u8C03\u6574\uFF1A\u4EC0\u4E48\u65F6\u5019\u505A\uFF0C\u600E\u4E48\u77E5\u9053\u6709\u6CA1\u6709\u7528\uFF1F"]]
+  ],
+  monthly: [
+    ["\u8FD9\u4E2A\u6708\u53D1\u751F\u4E86\u4EC0\u4E48", ["\u54EA\u4E9B\u91CD\u8981\u53D8\u5316\u503C\u5F97\u8DE8\u5468\u5BF9\u7167\uFF1F\u4E0D\u7528\u6309\u65F6\u95F4\u91CD\u8BB2\u3002"]],
+    ["\u60F3\u6CD5\u6709\u4EC0\u4E48\u53D8\u5316", ["\u4EC0\u4E48\u8BC1\u636E\u8BA9\u4F60\u6539\u53D8\u770B\u6CD5\uFF1F\u54EA\u91CC\u8FD8\u4E0D\u786E\u5B9A\uFF1F"]],
+    ["\u505A\u8FC7\u7684\u9009\u62E9", ["\u4EC0\u4E48\u503C\u5F97\u7EE7\u7EED\u3001\u8C03\u6574\u6216\u505C\u6B62\uFF1F"]],
+    ["\u4E0B\u4E2A\u6708", ["\u53EA\u9009\u4E00\u4E2A\u91CD\u70B9\uFF0C\u51C6\u5907\u9A8C\u8BC1\u4EC0\u4E48\uFF1F"]]
+  ],
+  quarterly: [
+    ["\u8FD9\u4E00\u5B63\u7684\u4E3B\u7EBF", ["\u8FD9\u6BB5\u65F6\u95F4\u6700\u91CD\u8981\u7684\u65B9\u5411\u662F\u4EC0\u4E48\uFF0C\u6709\u6CA1\u6709\u504F\u79BB\uFF1F"]],
+    ["\u7ED3\u679C\u3001\u53D8\u5316\u4E0E\u53CD\u4F8B", ["\u4EC0\u4E48\u505A\u6CD5\u53CD\u590D\u6709\u6548\uFF0C\u4EC0\u4E48\u7ED3\u679C\u4E0E\u9884\u671F\u76F8\u53CD\uFF1F"]],
+    ["\u4E0B\u4E00\u9636\u6BB5", ["\u63A5\u4E0B\u6765\u8981\u6295\u5165\u4EC0\u4E48\uFF0C\u53C8\u6253\u7B97\u653E\u4E0B\u4EC0\u4E48\uFF1F"]]
+  ],
+  yearly: [
+    ["\u8FD9\u4E00\u5E74", ["\u5982\u679C\u53EA\u7559\u4E00\u53E5\u8BDD\uFF0C\u600E\u6837\u6982\u62EC\u8FD9\u4E00\u5E74\uFF1F"]],
+    ["\u91CD\u8981\u7684\u7ECF\u5386\u4E0E\u9009\u62E9", ["\u54EA\u51E0\u4EF6\u4E8B\u6216\u51B3\u5B9A\u6539\u53D8\u4E86\u8D70\u5411\uFF1F"]],
+    ["\u6539\u53D8\u4E0E\u5EF6\u7EED", ["\u54EA\u4E9B\u53D8\u5316\u6709\u8BC1\u636E\u652F\u6301\uFF0C\u54EA\u4E9B\u8FD8\u503C\u5F97\u7EE7\u7EED\uFF1F"]],
+    ["\u4E0B\u4E00\u5E74", ["\u4F18\u5148\u4FDD\u7559\u4EC0\u4E48\uFF0C\u4E3B\u52A8\u4E0D\u505A\u4EC0\u4E48\uFF1F"]]
+  ]
+};
+function writingGuideKind(path, config) {
+  const kind = path ? classifyNote(path, config)?.kind : void 0;
+  return PERIOD_KINDS.find((periodKind) => periodKind === kind);
+}
+function renderWritingGuide(root, path, config) {
+  const kind = writingGuideKind(path, config);
+  const append = (parent, tag, text) => {
+    const element = root.ownerDocument.createElement(tag);
+    if (text) element.textContent = text;
+    parent.append(element);
+    return element;
+  };
+  root.replaceChildren();
+  if (!kind) {
+    append(root, "p", "\u6253\u5F00\u4E00\u7BC7\u5468\u671F\u7B14\u8BB0\uFF0C\u8FD9\u91CC\u4F1A\u663E\u793A\u5BF9\u5E94\u7684\u5199\u4F5C\u63D0\u793A\u3002");
+    return;
+  }
+  append(root, "h2", PERIOD_LABELS[kind]);
+  append(root, "p", kind === "daily" ? "\u6311\u6709\u5185\u5BB9\u7684\u5199\u4E00\u4E24\u53E5\uFF0C\u4E0D\u7528\u5957\u683C\u5F0F\u6216\u9010\u9879\u56DE\u7B54\u3002\u4E0A\u9762\u5199\u8FC7\u7684\u4E0D\u7528\u518D\u6284\u3002" : "\u6311\u6709\u7528\u7684\u5199\uFF0C\u4E0D\u7528\u9010\u9879\u56DE\u7B54\u3002");
+  for (const [title, prompts] of guides[kind]) {
+    append(root, "h3", title);
+    const list = append(root, "ul");
+    for (const prompt of prompts) append(list, "li", prompt);
+  }
+}
+
+// src/obsidian/writing-guide-view.ts
+var VIEW_TYPE = "life-archive-writing-guide";
+var TITLE = "\u5199\u4F5C\u63D0\u793A";
+var ICON = "list-bullet";
+var WritingGuideView = class extends import_obsidian3.ItemView {
+  constructor(leaf, plugin) {
+    super(leaf);
+    this.plugin = plugin;
+  }
+  getViewType() {
+    return VIEW_TYPE;
+  }
+  getDisplayText() {
+    return TITLE;
+  }
+  getIcon() {
+    return ICON;
+  }
+  refresh(path) {
+    this.contentEl.addClass("life-archive-writing-guide");
+    renderWritingGuide(this.contentEl, path, this.plugin.config);
+  }
+};
+function registerWritingGuide(plugin) {
+  const { workspace, vault } = plugin.app;
+  const actions = /* @__PURE__ */ new Map();
+  const currentView = () => workspace.getMostRecentLeaf()?.view;
+  plugin.registerView(VIEW_TYPE, (leaf) => new WritingGuideView(leaf, plugin));
+  const open = async (path) => {
+    let leaf = workspace.getLeavesOfType(VIEW_TYPE)[0];
+    if (!leaf) {
+      const right = workspace.getRightLeaf(false);
+      if (!right) return;
+      leaf = right;
+      await leaf.setViewState({ type: VIEW_TYPE });
+    }
+    await workspace.revealLeaf(leaf);
+    if (leaf.view instanceof WritingGuideView) {
+      const view = currentView();
+      leaf.view.refresh(view instanceof import_obsidian3.MarkdownView ? view.file?.path ?? null : path);
+    }
+  };
+  const show = (path) => {
+    void open(path).catch(() => new import_obsidian3.Notice("\u65E0\u6CD5\u6253\u5F00\u5199\u4F5C\u63D0\u793A"));
+  };
+  const refresh = () => {
+    const views = /* @__PURE__ */ new Set();
+    for (const leaf of workspace.getLeavesOfType("markdown")) {
+      const view2 = leaf.view;
+      if (!(view2 instanceof import_obsidian3.MarkdownView) || !writingGuideKind(view2.file?.path ?? null, plugin.config)) continue;
+      views.add(view2);
+      if (!actions.has(view2)) actions.set(view2, view2.addAction(ICON, TITLE, () => {
+        if (view2.file && writingGuideKind(view2.file.path, plugin.config)) show(view2.file.path);
+      }));
+    }
+    for (const [view2, action] of actions) {
+      if (!views.has(view2)) {
+        action.remove();
+        actions.delete(view2);
+      }
+    }
+    const view = currentView();
+    const path = view instanceof import_obsidian3.MarkdownView ? view.file?.path ?? null : null;
+    for (const leaf of workspace.getLeavesOfType(VIEW_TYPE)) {
+      if (leaf.view instanceof WritingGuideView) leaf.view.refresh(path);
+    }
+  };
+  plugin.addCommand({ id: "writing-guide", name: "\u6253\u5F00\u5199\u4F5C\u63D0\u793A", checkCallback: (checking) => {
+    const view = currentView();
+    const path = view instanceof import_obsidian3.MarkdownView ? view.file?.path : void 0;
+    if (!path || !writingGuideKind(path, plugin.config)) return false;
+    if (!checking) show(path);
+    return true;
+  } });
+  plugin.registerEvent(workspace.on("file-open", refresh));
+  plugin.registerEvent(workspace.on("active-leaf-change", refresh));
+  plugin.registerEvent(workspace.on("layout-change", refresh));
+  plugin.registerEvent(vault.on("rename", refresh));
+  workspace.onLayoutReady(refresh);
+  plugin.register(() => {
+    for (const action of actions.values()) action.remove();
+    actions.clear();
+    for (const leaf of workspace.getLeavesOfType(VIEW_TYPE)) leaf.detach();
+  });
+  return refresh;
+}
+
 // src/obsidian/settings.ts
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 
 // node_modules/obsidian-daily-notes-interface/dist/index.mjs
-var import_obsidian3 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 function validateString(value) {
   return typeof value === "string" ? value : "";
 }
@@ -1610,7 +1757,7 @@ function importedSettings(current) {
 }
 
 // src/obsidian/settings.ts
-var ArchiveSettings = class extends import_obsidian4.PluginSettingTab {
+var ArchiveSettings = class extends import_obsidian5.PluginSettingTab {
   constructor(archive) {
     super(archive.app, archive);
     this.archive = archive;
@@ -1621,24 +1768,24 @@ var ArchiveSettings = class extends import_obsidian4.PluginSettingTab {
     root.createEl("h2", { text: "\u4EBA\u751F\u5B58\u6863" });
     root.createEl("p", { text: "\u65E5\u5E38\u8BB0\u5F55\u3001\u6708\u5EA6\u56DE\u671B\uFF0C\u4EE5\u53CA\u5C5E\u4E8E\u4F60\u7684\u7B14\u8BB0\u5E93\u3002\u76EE\u5F55\u4E0E\u6A21\u677F\u4FEE\u6539\u540E\u70B9\u51FB\u300C\u4FDD\u5B58\u8BBE\u7F6E\u300D\u3002", cls: "setting-item-description" });
     const draft = structuredClone(this.archive.config);
-    new import_obsidian4.Setting(root).setName("\u542F\u52A8\u65F6\u6253\u5F00\u4EBA\u751F\u5B58\u6863").addToggle((t) => t.setValue(draft.openOnStartup).onChange((v) => {
+    new import_obsidian5.Setting(root).setName("\u542F\u52A8\u65F6\u6253\u5F00\u4EBA\u751F\u5B58\u6863").addToggle((t) => t.setValue(draft.openOnStartup).onChange((v) => {
       draft.openOnStartup = v;
     }));
-    new import_obsidian4.Setting(root).setName("\u65E5\u5386\u65F6\u533A").setDesc("IANA \u65F6\u533A\u540D\u79F0\uFF0C\u4F8B\u5982 Asia/Shanghai\u3002\u5468\u671F\u6309\u6B64\u65F6\u533A\u7684\u81EA\u7136\u65E5\u5386\u8BA1\u7B97\u3002").addText((t) => t.setValue(draft.timezone).onChange((v) => {
+    new import_obsidian5.Setting(root).setName("\u65E5\u5386\u65F6\u533A").setDesc("IANA \u65F6\u533A\u540D\u79F0\uFF0C\u4F8B\u5982 Asia/Shanghai\u3002\u5468\u671F\u6309\u6B64\u65F6\u533A\u7684\u81EA\u7136\u65E5\u5386\u8BA1\u7B97\u3002").addText((t) => t.setValue(draft.timezone).onChange((v) => {
       draft.timezone = v.trim();
     }));
     root.createEl("h3", { text: "\u7B14\u8BB0\u76EE\u5F55" });
     if (PERIOD_KINDS.every((kind) => draft.paths[kind] === draft.paths.daily)) {
-      new import_obsidian4.Setting(root).setName("\u5468\u671F\u7B14\u8BB0").addText((t) => t.setValue(draft.paths.daily).onChange((value) => {
+      new import_obsidian5.Setting(root).setName("\u5468\u671F\u7B14\u8BB0").addText((t) => t.setValue(draft.paths.daily).onChange((value) => {
         for (const kind of PERIOD_KINDS) draft.paths[kind] = value;
       }));
     } else {
-      for (const kind of PERIOD_KINDS) new import_obsidian4.Setting(root).setName(PERIOD_LABELS[kind]).addText((t) => t.setValue(draft.paths[kind]).onChange((value) => {
+      for (const kind of PERIOD_KINDS) new import_obsidian5.Setting(root).setName(PERIOD_LABELS[kind]).addText((t) => t.setValue(draft.paths[kind]).onChange((value) => {
         draft.paths[kind] = value;
       }));
     }
     const names = { thoughts: "\u601D\u60F3\u6587\u7AE0", ai: "AI \u6708\u5EA6\u590D\u76D8", templates: "\u6A21\u677F\u76EE\u5F55" };
-    for (const kind of Object.keys(names)) new import_obsidian4.Setting(root).setName(names[kind]).addText((t) => t.setValue(draft.paths[kind]).onChange((value) => {
+    for (const kind of Object.keys(names)) new import_obsidian5.Setting(root).setName(names[kind]).addText((t) => t.setValue(draft.paths[kind]).onChange((value) => {
       const old = draft.paths[kind];
       draft.paths[kind] = value;
       if (kind === "templates") for (const templateKind of Object.keys(draft.templates)) {
@@ -1647,45 +1794,45 @@ var ArchiveSettings = class extends import_obsidian4.PluginSettingTab {
     }));
     root.createEl("p", { text: "\u4FEE\u6539\u76EE\u5F55\u4E0D\u4F1A\u642C\u52A8\u5DF2\u6709\u7B14\u8BB0\uFF1B\u8BF7\u5148\u5728 Obsidian \u4E2D\u79FB\u52A8\u9700\u8981\u8FC1\u79FB\u7684\u5185\u5BB9\u3002\u4E0D\u540C\u7528\u9014\u7684\u76EE\u5F55\u4E0D\u80FD\u76F8\u4E92\u5305\u542B\u3002", cls: "setting-item-description" });
     root.createEl("h3", { text: "\u7B14\u8BB0\u6A21\u677F" });
-    for (const kind of Object.keys(TEMPLATE_NAMES)) new import_obsidian4.Setting(root).setName(kind === "thought" ? TEMPLATE_NAMES.thought : PERIOD_LABELS[kind]).addText((t) => t.setValue(draft.templates[kind]).onChange((value) => {
+    for (const kind of Object.keys(TEMPLATE_NAMES)) new import_obsidian5.Setting(root).setName(kind === "thought" ? TEMPLATE_NAMES.thought : PERIOD_LABELS[kind]).addText((t) => t.setValue(draft.templates[kind]).onChange((value) => {
       draft.templates[kind] = value;
     }));
     root.createEl("p", { text: "\u652F\u6301 {{date}}\u3001{{title}}\u3001{{period}}\u3001{{start}}\u3001{{end}}\u3001{{monthNote}}\u3001{{aiNote}}\u3002\u6A21\u677F\u4FDD\u5B58\u5728\u7B14\u8BB0\u5E93\u4E2D\uFF0C\u53EF\u76F4\u63A5\u7F16\u8F91\u3002", cls: "setting-item-description" });
     root.createEl("h3", { text: "GitHub \u540C\u6B65" });
-    new import_obsidian4.Setting(root).setName("\u79C1\u6709\u4ED3\u5E93\u514B\u9686\u5730\u5740").setDesc("\u6253\u5F00 Vault \u65F6\u540C\u6B65\uFF0C\u4FDD\u5B58\u540E\u7B49\u5F85 30 \u79D2\u5408\u5E76\u540C\u6B65\u3002\u7559\u7A7A\u53EF\u505C\u7528\u3002").addText((t) => t.setValue(draft.githubRemote).onChange((value) => {
+    new import_obsidian5.Setting(root).setName("\u79C1\u6709\u4ED3\u5E93\u514B\u9686\u5730\u5740").setDesc("\u6253\u5F00 Vault \u65F6\u540C\u6B65\uFF0C\u4FDD\u5B58\u540E\u7B49\u5F85 30 \u79D2\u5408\u5E76\u540C\u6B65\u3002\u7559\u7A7A\u53EF\u505C\u7528\u3002").addText((t) => t.setValue(draft.githubRemote).onChange((value) => {
       draft.githubRemote = value.trim();
     }));
     root.createEl("h3", { text: "AI \u6708\u5EA6\u56DE\u987E" });
-    new import_obsidian4.Setting(root).setName("Node.js \u7A0B\u5E8F\u8DEF\u5F84").setDesc("\u7528\u4E8E\u8FD0\u884C\u72EC\u7ACB\u590D\u76D8\u5DE5\u5177\u3002\u9ED8\u8BA4\u67E5\u627E node\uFF1B\u684C\u9762\u73AF\u5883\u627E\u4E0D\u5230\u65F6\u53EF\u586B\u5199\u5B8C\u6574\u8DEF\u5F84\u3002").addText((t) => t.setValue(draft.nodePath).onChange((value) => {
+    new import_obsidian5.Setting(root).setName("Node.js \u7A0B\u5E8F\u8DEF\u5F84").setDesc("\u7528\u4E8E\u8FD0\u884C\u72EC\u7ACB\u590D\u76D8\u5DE5\u5177\u3002\u9ED8\u8BA4\u67E5\u627E node\uFF1B\u684C\u9762\u73AF\u5883\u627E\u4E0D\u5230\u65F6\u53EF\u586B\u5199\u5B8C\u6574\u8DEF\u5F84\u3002").addText((t) => t.setValue(draft.nodePath).onChange((value) => {
       draft.nodePath = value.trim();
     }));
-    new import_obsidian4.Setting(root).setName("Codex \u7A0B\u5E8F\u8DEF\u5F84").setDesc("\u9ED8\u8BA4\u81EA\u52A8\u67E5\u627E codex\uFF1B\u4E5F\u53EF\u586B\u5199\u672C\u673A\u7684\u5B8C\u6574\u53EF\u6267\u884C\u6587\u4EF6\u8DEF\u5F84\u3002").addText((t) => t.setValue(draft.codexPath).onChange((value) => {
+    new import_obsidian5.Setting(root).setName("Codex \u7A0B\u5E8F\u8DEF\u5F84").setDesc("\u9ED8\u8BA4\u81EA\u52A8\u67E5\u627E codex\uFF1B\u4E5F\u53EF\u586B\u5199\u672C\u673A\u7684\u5B8C\u6574\u53EF\u6267\u884C\u6587\u4EF6\u8DEF\u5F84\u3002").addText((t) => t.setValue(draft.codexPath).onChange((value) => {
       draft.codexPath = value.trim();
     }));
-    new import_obsidian4.Setting(root).setName("\u989D\u5916\u5141\u8BB8\u8BFB\u53D6\u7684\u76EE\u5F55").setDesc("\u6BCF\u884C\u4E00\u4E2A\u76F8\u5BF9\u76EE\u5F55\uFF1B\u4ECD\u9075\u5B88\u6BCF\u7BC7\u7B14\u8BB0\u7684 ai \u6743\u9650\uFF0C\u4EC5\u5728\u6309\u6708 date \u6216\u663E\u5F0F\u9009\u6750\u65F6\u7EB3\u5165\u3002").addTextArea((t) => t.setValue(draft.extraReadFolders.join("\n")).onChange((value) => {
+    new import_obsidian5.Setting(root).setName("\u989D\u5916\u5141\u8BB8\u8BFB\u53D6\u7684\u76EE\u5F55").setDesc("\u6BCF\u884C\u4E00\u4E2A\u76F8\u5BF9\u76EE\u5F55\uFF1B\u4ECD\u9075\u5B88\u6BCF\u7BC7\u7B14\u8BB0\u7684 ai \u6743\u9650\uFF0C\u4EC5\u5728\u6309\u6708 date \u6216\u663E\u5F0F\u9009\u6750\u65F6\u7EB3\u5165\u3002").addTextArea((t) => t.setValue(draft.extraReadFolders.join("\n")).onChange((value) => {
       draft.extraReadFolders = value.split("\n").map((s) => s.trim()).filter(Boolean);
     }));
-    new import_obsidian4.Setting(root).setName("\u4FDD\u5B58\u8BBE\u7F6E").setDesc("\u6821\u9A8C\u8DEF\u5F84\u540E\u751F\u6548\uFF1B\u65B0\u76EE\u5F55\u4E0E\u7F3A\u5931\u6A21\u677F\u4F1A\u81EA\u52A8\u8865\u9F50\uFF0C\u5DF2\u6709\u6587\u4EF6\u4FDD\u7559\u3002").addButton((b) => b.setButtonText("\u4FDD\u5B58\u8BBE\u7F6E").setCta().onClick(async () => {
+    new import_obsidian5.Setting(root).setName("\u4FDD\u5B58\u8BBE\u7F6E").setDesc("\u6821\u9A8C\u8DEF\u5F84\u540E\u751F\u6548\uFF1B\u65B0\u76EE\u5F55\u4E0E\u7F3A\u5931\u6A21\u677F\u4F1A\u81EA\u52A8\u8865\u9F50\uFF0C\u5DF2\u6709\u6587\u4EF6\u4FDD\u7559\u3002").addButton((b) => b.setButtonText("\u4FDD\u5B58\u8BBE\u7F6E").setCta().onClick(async () => {
       try {
         await this.archive.updateConfig(draft);
-        new import_obsidian4.Notice("\u4EBA\u751F\u5B58\u6863\u8BBE\u7F6E\u5DF2\u4FDD\u5B58");
+        new import_obsidian5.Notice("\u4EBA\u751F\u5B58\u6863\u8BBE\u7F6E\u5DF2\u4FDD\u5B58");
         this.display();
       } catch (e) {
-        new import_obsidian4.Notice(e instanceof Error ? e.message : "\u8BBE\u7F6E\u4FDD\u5B58\u5931\u8D25");
+        new import_obsidian5.Notice(e instanceof Error ? e.message : "\u8BBE\u7F6E\u4FDD\u5B58\u5931\u8D25");
       }
     }));
     root.createEl("h3", { text: "\u590D\u7528\u5DF2\u6709\u5468\u671F\u8BBE\u7F6E" });
-    new import_obsidian4.Setting(root).setName("\u5BFC\u5165 Daily Notes / Periodic Notes / Calendar \u8BBE\u7F6E").setDesc("\u4EC5\u5BFC\u5165\u7B26\u5408\u5F53\u524D\u65E5\u671F\u547D\u540D\u7EA6\u5B9A\u7684\u72EC\u7ACB\u76EE\u5F55\u548C\u666E\u901A\u6A21\u677F\uFF1B\u4E0D\u4F1A\u6267\u884C\u6A21\u677F\u811A\u672C\u6216\u6539\u52A8\u539F\u63D2\u4EF6\u3002").addButton((b) => b.setButtonText("\u67E5\u770B\u53EF\u5BFC\u5165\u914D\u7F6E").onClick(() => {
-      const result = importedSettings(this.archive.config), modal = new import_obsidian4.Modal(this.app);
+    new import_obsidian5.Setting(root).setName("\u5BFC\u5165 Daily Notes / Periodic Notes / Calendar \u8BBE\u7F6E").setDesc("\u4EC5\u5BFC\u5165\u7B26\u5408\u5F53\u524D\u65E5\u671F\u547D\u540D\u7EA6\u5B9A\u7684\u72EC\u7ACB\u76EE\u5F55\u548C\u666E\u901A\u6A21\u677F\uFF1B\u4E0D\u4F1A\u6267\u884C\u6A21\u677F\u811A\u672C\u6216\u6539\u52A8\u539F\u63D2\u4EF6\u3002").addButton((b) => b.setButtonText("\u67E5\u770B\u53EF\u5BFC\u5165\u914D\u7F6E").onClick(() => {
+      const result = importedSettings(this.archive.config), modal = new import_obsidian5.Modal(this.app);
       modal.titleEl.setText("\u5BFC\u5165\u5468\u671F\u7B14\u8BB0\u914D\u7F6E");
       const list = modal.contentEl.createEl("ul");
       result.messages.forEach((text) => list.createEl("li", { text }));
       modal.contentEl.createEl("button", { text: "\u5E94\u7528\u5BFC\u5165\u7ED3\u679C", cls: "mod-cta" }).addEventListener("click", () => {
         void this.archive.updateConfig(result.config).then(() => {
-          new import_obsidian4.Notice("\u517C\u5BB9\u7684\u5468\u671F\u8BBE\u7F6E\u5DF2\u5BFC\u5165");
+          new import_obsidian5.Notice("\u517C\u5BB9\u7684\u5468\u671F\u8BBE\u7F6E\u5DF2\u5BFC\u5165");
           modal.close();
           this.display();
-        }).catch((e) => new import_obsidian4.Notice(e.message));
+        }).catch((e) => new import_obsidian5.Notice(e.message));
       });
       modal.open();
     }));
@@ -1693,8 +1840,8 @@ var ArchiveSettings = class extends import_obsidian4.PluginSettingTab {
 };
 
 // src/obsidian/modals.ts
-var import_obsidian5 = require("obsidian");
-var ThoughtModal = class extends import_obsidian5.Modal {
+var import_obsidian6 = require("obsidian");
+var ThoughtModal = class extends import_obsidian6.Modal {
   constructor(plugin) {
     super(plugin.app);
     this.plugin = plugin;
@@ -1731,7 +1878,7 @@ var ThoughtModal = class extends import_obsidian5.Modal {
     input.focus();
   }
 };
-var NotesModal = class extends import_obsidian5.FuzzySuggestModal {
+var NotesModal = class extends import_obsidian6.FuzzySuggestModal {
   constructor(app, notes, title, openNote) {
     super(app);
     this.notes = notes;
@@ -1746,10 +1893,10 @@ var NotesModal = class extends import_obsidian5.FuzzySuggestModal {
     return note.path.replace(/\.md$/, "");
   }
   onChooseItem(note) {
-    void this.openNote(note.path).catch((e) => new import_obsidian5.Notice(e instanceof Error ? e.message : "\u65E0\u6CD5\u6253\u5F00\u7B14\u8BB0"));
+    void this.openNote(note.path).catch((e) => new import_obsidian6.Notice(e instanceof Error ? e.message : "\u65E0\u6CD5\u6253\u5F00\u7B14\u8BB0"));
   }
 };
-var ReviewModal = class extends import_obsidian5.Modal {
+var ReviewModal = class extends import_obsidian6.Modal {
   constructor(plugin) {
     super(plugin.app);
     this.plugin = plugin;
@@ -1768,7 +1915,7 @@ var ReviewModal = class extends import_obsidian5.Modal {
     const root = this.contentEl;
     root.empty();
     root.createEl("p", { text: "\u5148\u770B\u672C\u6708\u4F1A\u7528\u5230\u54EA\u4E9B\u8D44\u6599\uFF0C\u518D\u4EA4\u7ED9 Codex \u6574\u7406\u3002\u539F\u59CB\u5468\u671F\u7B14\u8BB0\u548C\u601D\u60F3\u6587\u7AE0\u53EA\u8BFB\uFF0C\u7ED3\u679C\u4FDD\u5B58\u4E3A\u72EC\u7ACB\u7684 AI \u8349\u7A3F\u3002" });
-    new import_obsidian5.Setting(root).setName("\u590D\u76D8\u6708\u4EFD").setDesc("\u9ED8\u8BA4\u56DE\u987E\u4E0A\u4E00\u81EA\u7136\u6708\uFF0C\u4E5F\u53EF\u4EE5\u8865\u8DD1\u5176\u4ED6\u6708\u4EFD\u3002").addText((t) => {
+    new import_obsidian6.Setting(root).setName("\u590D\u76D8\u6708\u4EFD").setDesc("\u9ED8\u8BA4\u56DE\u987E\u4E0A\u4E00\u81EA\u7136\u6708\uFF0C\u4E5F\u53EF\u4EE5\u8865\u8DD1\u5176\u4ED6\u6708\u4EFD\u3002").addText((t) => {
       t.inputEl.type = "month";
       t.setValue(this.month).setDisabled(this.phase !== "idle");
       t.onChange((value) => {
@@ -1790,7 +1937,7 @@ var ReviewModal = class extends import_obsidian5.Modal {
         const li = list.createEl("li");
         const link = li.createEl("button", { text: path.replace(/\.md$/, ""), cls: "la-text-button" });
         link.addEventListener("click", () => {
-          void this.plugin.port.open(path).catch((e) => new import_obsidian5.Notice(e.message));
+          void this.plugin.port.open(path).catch((e) => new import_obsidian6.Notice(e.message));
         });
       }
       if (!this.prepared.sources.length) state.createEl("p", { text: "\u6CA1\u6709\u53EF\u7528\u6750\u6599\u65F6\u53EA\u8BB0\u5F55\u8D44\u6599\u4E0D\u8DB3\uFF0C\u4E0D\u8C03\u7528\u6A21\u578B\uFF0C\u4E5F\u4E0D\u751F\u6210\u89C2\u5BDF\u3002", cls: "la-muted" });
@@ -1815,7 +1962,7 @@ var ReviewModal = class extends import_obsidian5.Modal {
       const run = buttons.createEl("button", { text: this.prepared?.sources.length ? "\u751F\u6210 AI \u8349\u7A3F" : "\u8BB0\u5F55\u8D44\u6599\u4E0D\u8DB3", cls: "mod-cta" });
       run.disabled = !accepted;
       if (this.prepared?.sources.length) {
-        const consent = new import_obsidian5.Setting(root).setName("\u540C\u610F\u672C\u6B21\u5C06\u6240\u5217\u8D44\u6599\u4EA4\u7ED9 Codex").addToggle((t) => t.setValue(false).onChange((value) => {
+        const consent = new import_obsidian6.Setting(root).setName("\u540C\u610F\u672C\u6B21\u5C06\u6240\u5217\u8D44\u6599\u4EA4\u7ED9 Codex").addToggle((t) => t.setValue(false).onChange((value) => {
           accepted = value;
           run.disabled = !accepted;
         }));
@@ -1863,7 +2010,7 @@ var ReviewModal = class extends import_obsidian5.Modal {
       this.phase = "done";
       this.prepared = void 0;
       this.plugin.requestRefresh();
-      new import_obsidian5.Notice(result.status === "insufficient" ? "\u5DF2\u8BB0\u5F55\u672C\u6708\u8D44\u6599\u4E0D\u8DB3" : "AI \u6708\u5EA6\u590D\u76D8\u8349\u7A3F\u5DF2\u751F\u6210");
+      new import_obsidian6.Notice(result.status === "insufficient" ? "\u5DF2\u8BB0\u5F55\u672C\u6708\u8D44\u6599\u4E0D\u8DB3" : "AI \u6708\u5EA6\u590D\u76D8\u8349\u7A3F\u5DF2\u751F\u6210");
       if (this.alive) {
         this.close();
         await this.plugin.port.open(result.targetPath);
@@ -1872,7 +2019,7 @@ var ReviewModal = class extends import_obsidian5.Modal {
       this.phase = "idle";
       this.prepared = void 0;
       if (this.alive) this.draw(e instanceof Error ? e.message : "\u751F\u6210\u5931\u8D25\uFF0C\u8FD0\u884C\u8BB0\u5F55\u5DF2\u4FDD\u7559");
-      else new import_obsidian5.Notice(e instanceof Error ? e.message : "\u590D\u76D8\u751F\u6210\u5931\u8D25");
+      else new import_obsidian6.Notice(e instanceof Error ? e.message : "\u590D\u76D8\u751F\u6210\u5931\u8D25");
     }
   }
   async reset() {
@@ -1888,7 +2035,7 @@ var ReviewModal = class extends import_obsidian5.Modal {
     this.contentEl.empty();
   }
 };
-var HelpModal = class extends import_obsidian5.Modal {
+var HelpModal = class extends import_obsidian6.Modal {
   onOpen() {
     this.titleEl.setText("\u4EBA\u751F\u5B58\u6863 \xB7 \u4F7F\u7528\u8BF4\u660E");
     const content = this.contentEl;
@@ -2006,7 +2153,7 @@ async function syncVault(root, remote) {
 }
 
 // src/main.ts
-var LifeArchive = class extends import_obsidian6.Plugin {
+var LifeArchive = class extends import_obsidian7.Plugin {
   config;
   port;
   notes;
@@ -2015,6 +2162,7 @@ var LifeArchive = class extends import_obsidian6.Plugin {
   refreshTimer = null;
   children = /* @__PURE__ */ new Set();
   ready = false;
+  refreshWritingGuide;
   syncTimer;
   syncJob;
   syncState = { state: "idle" };
@@ -2023,13 +2171,14 @@ var LifeArchive = class extends import_obsidian6.Plugin {
     try {
       this.config = loadConfig(await this.loadData() ?? {});
     } catch (e) {
-      new import_obsidian6.Notice(`\u4EBA\u751F\u5B58\u6863\u914D\u7F6E\u65E0\u6548\uFF1A${e instanceof Error ? e.message : "\u8BF7\u68C0\u67E5\u8BBE\u7F6E"}`);
+      new import_obsidian7.Notice(`\u4EBA\u751F\u5B58\u6863\u914D\u7F6E\u65E0\u6548\uFF1A${e instanceof Error ? e.message : "\u8BF7\u68C0\u67E5\u8BBE\u7F6E"}`);
       throw e;
     }
     this.port = new ObsidianVault(this.app);
     this.notes = new NoteService(this.config, this.port);
     this.index = new ArchiveIndex(this.config);
     this.registerView(HOME_VIEW, (leaf) => new HomeView(leaf, this));
+    this.refreshWritingGuide = registerWritingGuide(this);
     this.addSettingTab(new ArchiveSettings(this));
     this.addRibbonIcon("notebook-pen", "\u6253\u5F00\u4EBA\u751F\u5B58\u6863", () => {
       void this.openHome();
@@ -2041,22 +2190,22 @@ var LifeArchive = class extends import_obsidian6.Plugin {
       void this.syncGitHub(true);
     } });
     for (const kind of PERIOD_KINDS) this.addCommand({ id: `open-${kind}`, name: `\u6253\u5F00\u5F53\u524D${PERIOD_LABELS[kind]}`, callback: () => {
-      void this.notes.openPeriod(kind, today(this.config.timezone)).catch((e) => new import_obsidian6.Notice(e.message));
+      void this.notes.openPeriod(kind, today(this.config.timezone)).catch((e) => new import_obsidian7.Notice(e.message));
     } });
     this.addCommand({ id: "new-thought", name: "\u65B0\u5EFA\u601D\u60F3\u6587\u7AE0", callback: () => this.newThought() });
     this.addCommand({ id: "monthly-ai-review", name: "\u751F\u6210\u6216\u8865\u8DD1 AI \u6708\u5EA6\u590D\u76D8", callback: () => this.review() });
     this.addCommand({ id: "browse-reviews", name: "\u6D4F\u89C8\u5468\u671F\u7B14\u8BB0", callback: () => this.browse("reviews") });
     this.addCommand({ id: "browse-thoughts", name: "\u6D4F\u89C8\u601D\u60F3\u6587\u7AE0", callback: () => this.browse("thoughts") });
     this.addCommand({ id: "initialize", name: "\u8865\u9F50\u76EE\u5F55\u4E0E\u6A21\u677F", callback: () => {
-      void this.notes.initialize().then(() => new import_obsidian6.Notice("\u76EE\u5F55\u4E0E\u6A21\u677F\u5DF2\u68C0\u67E5\uFF0C\u5DF2\u6709\u6587\u4EF6\u4FDD\u7559")).catch((e) => new import_obsidian6.Notice(e.message));
+      void this.notes.initialize().then(() => new import_obsidian7.Notice("\u76EE\u5F55\u4E0E\u6A21\u677F\u5DF2\u68C0\u67E5\uFF0C\u5DF2\u6709\u6587\u4EF6\u4FDD\u7559")).catch((e) => new import_obsidian7.Notice(e.message));
     } });
     this.registerObsidianProtocolHandler("life-archive", async (params) => {
       if (params.action === "review") this.review();
-      else if (params.action === "period" && PERIOD_KINDS.includes(params.kind)) await this.notes.openPeriod(params.kind, params.date || today(this.config.timezone)).catch((e) => new import_obsidian6.Notice(e.message));
+      else if (params.action === "period" && PERIOD_KINDS.includes(params.kind)) await this.notes.openPeriod(params.kind, params.date || today(this.config.timezone)).catch((e) => new import_obsidian7.Notice(e.message));
       else await this.openHome();
     });
     const update = (file) => {
-      if (!(file instanceof import_obsidian6.TFile) || file.extension !== "md") return;
+      if (!(file instanceof import_obsidian7.TFile) || file.extension !== "md") return;
       this.index.upsert(this.port.entry(file));
       this.reviewCache.delete(file.path);
       if (this.index.has(file.path)) this.requestRefresh();
@@ -2109,7 +2258,7 @@ var LifeArchive = class extends import_obsidian6.Plugin {
       this.children.clear();
     });
     this.app.workspace.onLayoutReady(() => {
-      void this.initialize().catch((e) => new import_obsidian6.Notice(`\u4EBA\u751F\u5B58\u6863\u521D\u59CB\u5316\u5931\u8D25\uFF1A${e.message}`));
+      void this.initialize().catch((e) => new import_obsidian7.Notice(`\u4EBA\u751F\u5B58\u6863\u521D\u59CB\u5316\u5931\u8D25\uFF1A${e.message}`));
     });
   }
   async initialize() {
@@ -2148,7 +2297,7 @@ var LifeArchive = class extends import_obsidian6.Plugin {
   async syncGitHub(manual = false) {
     const remote = this.config.githubRemote;
     const adapter = this.app.vault.adapter;
-    if (!remote || !(adapter instanceof import_obsidian6.FileSystemAdapter)) {
+    if (!remote || !(adapter instanceof import_obsidian7.FileSystemAdapter)) {
       if (manual) this.setSyncState({ state: "error", message: "\u8BF7\u5728\u684C\u9762\u7248\u7684\u300C\u4EBA\u751F\u5B58\u6863\u300D\u8BBE\u7F6E\u4E2D\u586B\u5199 GitHub \u79C1\u6709\u4ED3\u5E93\u5730\u5740" });
       return;
     }
@@ -2212,6 +2361,7 @@ var LifeArchive = class extends import_obsidian6.Plugin {
     this.config = config;
     this.notes = notes;
     this.index = new ArchiveIndex(config);
+    this.refreshWritingGuide?.();
     this.index.reset(this.app.vault.getMarkdownFiles().map((file) => this.port.entry(file)));
     this.reviewCache.clear();
     this.requestRefresh();
@@ -2237,7 +2387,7 @@ var LifeArchive = class extends import_obsidian6.Plugin {
   }
   async runCli(args) {
     const adapter = this.app.vault.adapter;
-    if (!(adapter instanceof import_obsidian6.FileSystemAdapter)) return Promise.reject(new Error("AI \u590D\u76D8\u5DE5\u5177\u9700\u8981\u684C\u9762\u672C\u5730\u7B14\u8BB0\u5E93"));
+    if (!(adapter instanceof import_obsidian7.FileSystemAdapter)) return Promise.reject(new Error("AI \u590D\u76D8\u5DE5\u5177\u9700\u8981\u684C\u9762\u672C\u5730\u7B14\u8BB0\u5E93"));
     const base = adapter.getBasePath(), dir = this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`;
     const script = (0, import_node_path3.join)(base, dir, "review.cjs");
     const node = await nodeExecutable(this.config.nodePath);

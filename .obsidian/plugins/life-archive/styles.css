@@ -127,3 +127,11 @@
   .la-footer { align-items: flex-start; flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) { .life-archive-view * { scroll-behavior: auto !important; } }
+.life-archive-writing-guide {
+  padding: var(--size-4-4);
+  overflow: auto;
+}
+.life-archive-writing-guide h2 { margin-top: 0; }
+.life-archive-writing-guide h3 { margin-bottom: var(--size-4-2); }
+.life-archive-writing-guide ul { margin-top: 0; padding-inline-start: var(--size-4-5); }
+.life-archive-writing-guide li + li { margin-top: var(--size-4-2); }
