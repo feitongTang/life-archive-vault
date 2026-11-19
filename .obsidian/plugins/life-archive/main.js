@@ -695,6 +695,8 @@ function record(input) {
 function loadConfig(input = {}) {
   const raw = record(input ?? {});
   if (raw.schemaVersion !== void 0 && raw.schemaVersion !== 1) throw new Error("\u4E0D\u652F\u6301\u7684\u914D\u7F6E\u7248\u672C");
+  const periodLayout = raw.periodLayout ?? "by-type";
+  if (periodLayout !== "by-type" && periodLayout !== "annual") throw new Error("\u65E0\u6548\u7684\u5468\u671F\u7B14\u8BB0\u76EE\u5F55\u5E03\u5C40");
   const timezone2 = raw.timezone ?? "Asia/Shanghai";
   if (typeof timezone2 !== "string") throw new Error("\u65F6\u533A\u5FC5\u987B\u662F IANA \u65F6\u533A\u540D\u79F0");
   try {
@@ -736,6 +738,7 @@ function loadConfig(input = {}) {
   return {
     schemaVersion: 1,
     timezone: timezone2,
+    periodLayout,
     paths,
     templates,
     openOnStartup: raw.openOnStartup !== false,
@@ -747,6 +750,17 @@ function loadConfig(input = {}) {
 }
 function isWithin(path, folder) {
   return path.startsWith(`${folder}/`);
+}
+function annualPeriodRoot(kind, config) {
+  return config.periodLayout === "annual" && config.paths[kind] === PATHS[kind] ? PERIOD_FOLDER : void 0;
+}
+function annualPeriodFolder(kind, key, config) {
+  const root = annualPeriodRoot(kind, config);
+  if (!root) return void 0;
+  const year = `${root}/${key.slice(0, 4)}`;
+  if (kind === "yearly") return year;
+  const folder = `${year}/${PATHS[kind].slice(PERIOD_FOLDER.length + 1)}`;
+  return kind === "daily" ? `${folder}/${key.slice(5, 7)}` : folder;
 }
 function periodFolders(kind, config) {
   const folder = config.paths[kind];
@@ -813,10 +827,10 @@ function periodFor(kind, date, config) {
     end = d.endOf(unit).format("YYYY-MM-DD");
     key = kind === "daily" ? date : kind === "monthly" ? d.format("YYYY-MM") : kind === "quarterly" ? `${d.year()}-Q${d.quarter()}` : d.format("YYYY");
   }
-  return { kind, key, title: key, start, end, path: `${config.paths[kind]}/${key}.md` };
+  return { kind, key, title: key, start, end, path: `${annualPeriodFolder(kind, key, config) ?? config.paths[kind]}/${key}.md` };
 }
 function periodNotePaths(period, config) {
-  return periodFolders(period.kind, config).map((folder) => `${folder}/${period.key}.md`);
+  return [.../* @__PURE__ */ new Set([period.path, ...periodFolders(period.kind, config).map((folder) => `${folder}/${period.key}.md`)])];
 }
 function calendarMonth(month, _zone) {
   assertMonth(month);
@@ -848,7 +862,7 @@ function classifyNote(path, config) {
   const slash = path.lastIndexOf("/");
   const folder = path.slice(0, slash), key = path.slice(slash + 1, -3);
   for (const kind of PERIOD_KINDS) {
-    if (!periodFolders(kind, config).includes(folder)) continue;
+    if (annualPeriodFolder(kind, key, config) !== folder && !periodFolders(kind, config).includes(folder)) continue;
     try {
       let date;
       if (kind === "daily") date = key;
@@ -892,7 +906,7 @@ function renderTemplate(template, period, config, date, monthPath) {
     period: period.key,
     start: period.start,
     end: period.end,
-    monthNote: monthPath?.slice(0, -3) ?? `${config.paths.monthly}/${month}`,
+    monthNote: (monthPath ?? periodFor("monthly", period.start, config).path).slice(0, -3),
     aiNote: `${config.paths.ai}/${month}`
   };
   return template.replace(/\{\{\s*([A-Za-z]+)\s*\}\}/g, (match, key) => vars[key] ?? match);
@@ -937,7 +951,9 @@ var NoteService = class {
     }
   }
   async initialize() {
-    for (const path of new Set(Object.values(this.config.paths))) await this.ensureFolder(path);
+    const { paths } = this.config;
+    const periodRoots = PERIOD_KINDS.map((kind) => annualPeriodRoot(kind, this.config) ?? paths[kind]);
+    for (const path of /* @__PURE__ */ new Set([...periodRoots, paths.thoughts, paths.ai, paths.templates])) await this.ensureFolder(path);
     for (const kind of Object.keys(this.config.templates)) {
       await this.getOrCreate(this.config.templates[kind], async () => defaultTemplates[kind]);
     }
@@ -1802,6 +1818,9 @@ var ArchiveSettings = class extends import_obsidian5.PluginSettingTab {
       draft.timezone = v.trim();
     }));
     root.createEl("h3", { text: "\u7B14\u8BB0\u76EE\u5F55" });
+    new import_obsidian5.Setting(root).setName("\u5468\u671F\u7B14\u8BB0\u5F52\u6863\u65B9\u5F0F").setDesc("\u5E74\u5EA6\u5F52\u6863\u4EC5\u7528\u4E8E\u9ED8\u8BA4\u76EE\u5F55\uFF1B\u81EA\u5B9A\u4E49\u76EE\u5F55\u6CBF\u7528\u5404\u81EA\u7684\u8DEF\u5F84\u3002").addDropdown((t) => t.addOption("annual", "\u6309\u5E74\u5EA6\u5F52\u6863").addOption("by-type", "\u6309\u5468\u671F\u7C7B\u578B\u5F52\u6863").setValue(draft.periodLayout).onChange((value) => {
+      draft.periodLayout = value === "annual" ? "annual" : "by-type";
+    }));
     if (PERIOD_KINDS.every((kind) => draft.paths[kind] === draft.paths.daily)) {
       new import_obsidian5.Setting(root).setName("\u5468\u671F\u7B14\u8BB0").addText((t) => t.setValue(draft.paths.daily).onChange((value) => {
         for (const kind of PERIOD_KINDS) draft.paths[kind] = value;

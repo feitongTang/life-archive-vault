@@ -7979,6 +7979,8 @@ function record(input) {
 function loadConfig(input = {}) {
   const raw = record(input ?? {});
   if (raw.schemaVersion !== void 0 && raw.schemaVersion !== 1) throw new Error("\u4E0D\u652F\u6301\u7684\u914D\u7F6E\u7248\u672C");
+  const periodLayout = raw.periodLayout ?? "by-type";
+  if (periodLayout !== "by-type" && periodLayout !== "annual") throw new Error("\u65E0\u6548\u7684\u5468\u671F\u7B14\u8BB0\u76EE\u5F55\u5E03\u5C40");
   const timezone2 = raw.timezone ?? "Asia/Shanghai";
   if (typeof timezone2 !== "string") throw new Error("\u65F6\u533A\u5FC5\u987B\u662F IANA \u65F6\u533A\u540D\u79F0");
   try {
@@ -8020,6 +8022,7 @@ function loadConfig(input = {}) {
   return {
     schemaVersion: 1,
     timezone: timezone2,
+    periodLayout,
     paths,
     templates,
     openOnStartup: raw.openOnStartup !== false,
@@ -8031,6 +8034,17 @@ function loadConfig(input = {}) {
 }
 function isWithin(path, folder) {
   return path.startsWith(`${folder}/`);
+}
+function annualPeriodRoot(kind, config) {
+  return config.periodLayout === "annual" && config.paths[kind] === PATHS[kind] ? PERIOD_FOLDER : void 0;
+}
+function annualPeriodFolder(kind, key, config) {
+  const root = annualPeriodRoot(kind, config);
+  if (!root) return void 0;
+  const year = `${root}/${key.slice(0, 4)}`;
+  if (kind === "yearly") return year;
+  const folder = `${year}/${PATHS[kind].slice(PERIOD_FOLDER.length + 1)}`;
+  return kind === "daily" ? `${folder}/${key.slice(5, 7)}` : folder;
 }
 function periodFolders(kind, config) {
   const folder = config.paths[kind];
@@ -8099,10 +8113,10 @@ function periodFor(kind, date, config) {
     end = d.endOf(unit).format("YYYY-MM-DD");
     key = kind === "daily" ? date : kind === "monthly" ? d.format("YYYY-MM") : kind === "quarterly" ? `${d.year()}-Q${d.quarter()}` : d.format("YYYY");
   }
-  return { kind, key, title: key, start, end, path: `${config.paths[kind]}/${key}.md` };
+  return { kind, key, title: key, start, end, path: `${annualPeriodFolder(kind, key, config) ?? config.paths[kind]}/${key}.md` };
 }
 function periodNotePaths(period, config) {
-  return periodFolders(period.kind, config).map((folder) => `${folder}/${period.key}.md`);
+  return [.../* @__PURE__ */ new Set([period.path, ...periodFolders(period.kind, config).map((folder) => `${folder}/${period.key}.md`)])];
 }
 function classifyNote(path, config) {
   if (path.startsWith(`${config.paths.thoughts}/`) && path.endsWith(".md")) return { kind: "thoughts", key: path.slice(config.paths.thoughts.length + 1, -3), path };
@@ -8122,7 +8136,7 @@ function classifyNote(path, config) {
   const slash = path.lastIndexOf("/");
   const folder = path.slice(0, slash), key = path.slice(slash + 1, -3);
   for (const kind of PERIOD_KINDS) {
-    if (!periodFolders(kind, config).includes(folder)) continue;
+    if (annualPeriodFolder(kind, key, config) !== folder && !periodFolders(kind, config).includes(folder)) continue;
     try {
       let date;
       if (kind === "daily") date = key;
