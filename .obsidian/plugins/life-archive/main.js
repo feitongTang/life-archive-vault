@@ -1446,6 +1446,8 @@ var HomeView = class extends import_obsidian2.ItemView {
   }
   updateSyncState(status) {
     renderSyncState(this.contentEl, status);
+    const button2 = this.contentEl.querySelector('[data-action="sync-github"]');
+    if (button2) (0, import_obsidian2.setIcon)(button2, status.state === "success" ? "check" : status.state === "error" ? "x" : "refresh-cw");
   }
   async refresh() {
     const generation = ++this.generation;
@@ -1482,8 +1484,6 @@ var HomeView = class extends import_obsidian2.ItemView {
       help: () => this.plugin.help(),
       error: (message) => new import_obsidian2.Notice(message)
     });
-    const syncButton = this.contentEl.querySelector('[data-action="sync-github"]');
-    if (syncButton) (0, import_obsidian2.setIcon)(syncButton, "refresh-cw");
     this.updateSyncState(this.plugin.syncState);
     this.contentEl.scrollTop = scroll;
     if (oldDate && !this.focusDate) this.contentEl.querySelector(`[data-date="${oldDate}"]`)?.focus({ preventScroll: true });
@@ -2115,8 +2115,8 @@ var LifeArchive = class extends import_obsidian6.Plugin {
     for (const leaf of this.app.workspace.getLeavesOfType(HOME_VIEW)) {
       if (leaf.view instanceof HomeView) leaf.view.updateSyncState(status);
     }
-    if (status.state === "success") {
-      this.syncFeedbackTimer = window.setTimeout(() => this.setSyncState({ state: "idle" }), 1800);
+    if (status.state === "success" || status.state === "error") {
+      this.syncFeedbackTimer = window.setTimeout(() => this.setSyncState({ state: "idle" }), status.state === "error" ? 3500 : 1800);
     }
   }
   scheduleGitHubSync() {
