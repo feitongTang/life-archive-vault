@@ -1,0 +1,10 @@
+/.life-archive-plugin/
+/.obsidian/workspace*.json
+/.obsidian/plugins/life-archive/runs/
+/.obsidian/plugins/life-archive/.runs/
+/.obsidian/plugins/life-archive/runtime/
+/.trash/
+/.env
+/.env.*
+.DS_Store
+/.obsidian/plugins/life-archive/locks/

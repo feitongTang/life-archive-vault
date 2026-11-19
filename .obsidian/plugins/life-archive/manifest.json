@@ -1,0 +1,9 @@
+{
+  "id": "life-archive",
+  "name": "人生存档",
+  "version": "0.1.0",
+  "minAppVersion": "1.8.7",
+  "description": "日记、周期复盘、思想文章与有来源的 AI 月度回顾。",
+  "author": "唐异",
+  "isDesktopOnly": true
+}
