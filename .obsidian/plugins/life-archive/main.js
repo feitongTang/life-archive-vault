@@ -1170,45 +1170,10 @@ function renderDayDetails(parent, model, hasNote) {
     }
   }
 }
-function mountHome(container, model, actions) {
-  container.replaceChildren();
-  const root = el(container, "main", "la-home");
-  const header = el(root, "header", "la-header");
-  const intro = el(header, "div", "la-intro");
-  const date = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long", day: "numeric", weekday: "long", timeZone: "UTC" }).format(/* @__PURE__ */ new Date(`${model.today}T12:00:00Z`));
-  el(intro, "p", "la-eyebrow la-date", date);
-  el(intro, "h1", "", "\u4EBA\u751F\u5B58\u6863");
-  el(intro, "p", "la-subtitle", "\u7559\u4E0B\u4E00\u9875\u4ECA\u5929\uFF0C\u770B\u89C1\u4E00\u8DEF\u7684\u81EA\u5DF1\u3002");
-  const topActions = el(header, "div", "la-header-actions");
-  button(topActions, "\u6253\u5F00\u4ECA\u5929\u7684\u7B14\u8BB0  \u2197", "today", "la-primary");
-  button(topActions, "\uFF0B \u5199\u7BC7\u601D\u60F3", "thought", "la-secondary");
-  const sync = button(topActions, "", "sync-github", "la-secondary la-sync-button", "\u7ACB\u5373\u540C\u6B65 GitHub");
-  sync.title = "\u7ACB\u5373\u540C\u6B65 GitHub";
-  el(topActions, "span", "la-sync-status").setAttribute("role", "status");
-  const status = el(root, "div", "la-stats");
-  const hasPeriod = (period) => periodNotePaths(period).some((path) => model.paths.has(path));
-  const recordedDays = /* @__PURE__ */ new Set();
-  for (const path of model.paths) {
-    if (!basename(path).startsWith(`${model.month}-`)) continue;
-    const note = classifyNote(path, model.config);
-    if (note?.kind === "daily") recordedDays.add(note.key);
-  }
-  el(status, "span", "la-overview-label", monthLabel(model.month));
-  const days = el(status, "span");
-  el(days, "strong", "", String(recordedDays.size));
-  el(days, "span", "", " \u5929\u8BB0\u5F55");
-  const thoughts = el(status, "span");
-  el(thoughts, "strong", "", String(model.thoughtCount));
-  el(thoughts, "span", "", " \u7BC7\u601D\u60F3");
-  el(status, "span", "la-private", "\u4FDD\u5B58\u5728\u4F60\u7684\u7B14\u8BB0\u5E93");
-  const grid = el(root, "div", "la-main-grid");
+function renderDailyCalendar(calendar, model, hasPeriod) {
   const { date: selectedDate, data, filter } = model.calendar;
   const habits = data?.habits ?? [];
   const visibleHabits = filter ? habits.filter((habit) => habit.id === filter) : habits;
-  const calendar = section(grid, "\u8BB0\u5F55\u65E5\u5386", "");
-  calendar.classList.add("la-calendar-card");
-  const head = calendar.querySelector(".la-card-head");
-  button(head, "\u7BA1\u7406\u4E60\u60EF", "manage-habits", "la-text-button").disabled = Boolean(model.calendar.error);
   const nav = el(calendar, "div", "la-calendar-nav");
   const monthInput = el(nav, "input", "la-month-input");
   monthInput.type = "month";
@@ -1219,30 +1184,6 @@ function mountHome(container, model, actions) {
   button(navButtons, "\u2039", "prev", "la-icon-button", "\u4E0A\u4E2A\u6708");
   button(navButtons, "\u4ECA\u5929", "this-month", "la-small-button", "\u56DE\u5230\u4ECA\u5929");
   button(navButtons, "\u203A", "next", "la-icon-button", "\u4E0B\u4E2A\u6708");
-  const periods = el(calendar, "div", "la-period-shortcuts");
-  periods.setAttribute("role", "group");
-  periods.setAttribute("aria-label", "\u5468\u671F\u7B14\u8BB0");
-  const monthStart = `${model.month}-01`;
-  const month = parseDay(monthStart);
-  const periodLabels = {
-    monthly: `${month.month() + 1} \u6708\u7B14\u8BB0`,
-    quarterly: `\u7B2C ${month.quarter()} \u5B63\u5EA6\u7B14\u8BB0`,
-    yearly: `${month.year()} \u5E74\u7B14\u8BB0`
-  };
-  for (const kind of ["monthly", "quarterly", "yearly"]) {
-    const period = periodFor(kind, monthStart);
-    const exists = hasPeriod(period);
-    const shortcut = button(
-      periods,
-      periodLabels[kind],
-      "period",
-      "la-period-shortcut",
-      `${periodLabels[kind]} \xB7 ${period.key} \xB7 ${exists ? "\u6253\u5F00\u5DF2\u6709\u7B14\u8BB0" : "\u6309\u6A21\u677F\u521B\u5EFA"}`
-    );
-    shortcut.dataset.kind = kind;
-    shortcut.title = exists ? "\u6253\u5F00\u5DF2\u6709\u7B14\u8BB0" : "\u6309\u6A21\u677F\u521B\u5EFA\u7B14\u8BB0";
-    shortcut.classList.toggle("has-note", exists);
-  }
   const meta = el(calendar, "div", "la-calendar-meta");
   if (habits.length) habitFilters(meta, habits, filter);
   const legend = el(meta, "p", "la-calendar-legend");
@@ -1290,6 +1231,99 @@ function mountHome(container, model, actions) {
     }
   }
   renderDayDetails(calendar, model, hasPeriod(periodFor("daily", selectedDate)));
+  return monthInput;
+}
+function renderPeriodCalendar(parent, mode, year, currentYear, hasPeriod) {
+  const byDecade = mode === "yearly";
+  const start = byDecade ? Math.floor(year / 10) * 10 : year;
+  const step = byDecade ? 10 : 1;
+  const nav = el(parent, "div", "la-calendar-nav");
+  el(nav, "h3", "la-period-heading", byDecade ? `${start}\u2013${start + 9} \u5E74` : `${year} \u5E74`);
+  const navButtons = el(nav, "div", "la-inline");
+  button(navButtons, "\u2039", "period-prev", "la-icon-button", byDecade ? "\u524D\u5341\u5E74" : "\u4E0A\u4E00\u5E74").disabled = year - step < 1e3;
+  button(navButtons, "\u4ECA\u5E74", "period-current", "la-small-button", "\u56DE\u5230\u4ECA\u5E74");
+  button(navButtons, "\u203A", "period-next", "la-icon-button", byDecade ? "\u540E\u5341\u5E74" : "\u4E0B\u4E00\u5E74").disabled = year + step > 9999;
+  const cells = el(parent, "div", "la-period-cells");
+  const count = { monthly: 12, quarterly: 4, yearly: 10 }[mode];
+  for (let index = 0; index < count; index++) {
+    const cellYear = byDecade ? start + index : year;
+    const month = { monthly: index + 1, quarterly: index * 3 + 1, yearly: 1 }[mode];
+    const date = `${cellYear}-${String(month).padStart(2, "0")}-01`;
+    const period = periodFor(mode, date);
+    const exists = hasPeriod(period);
+    const label = { monthly: `${month} \u6708`, quarterly: `\u7B2C ${index + 1} \u5B63\u5EA6`, yearly: `${cellYear} \u5E74` }[mode];
+    const cell = button(
+      cells,
+      label,
+      "period",
+      "la-period-cell",
+      `${period.key}\uFF0C${exists ? "\u6253\u5F00\u5DF2\u6709\u7B14\u8BB0" : "\u6309\u6A21\u677F\u521B\u5EFA\u7B14\u8BB0"}`
+    );
+    cell.dataset.kind = mode;
+    cell.dataset.anchor = date;
+    cell.classList.toggle("has-note", exists);
+    if (byDecade && cellYear === currentYear) cell.setAttribute("aria-current", "date");
+  }
+  const legend = el(parent, "p", "la-calendar-legend la-period-legend");
+  el(legend, "span", "la-legend-dot");
+  el(legend, "span", "", "\u5DF2\u6709\u7B14\u8BB0");
+}
+function mountHome(container, model, actions) {
+  container.replaceChildren();
+  const root = el(container, "main", "la-home");
+  const header = el(root, "header", "la-header");
+  const intro = el(header, "div", "la-intro");
+  const date = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long", day: "numeric", weekday: "long", timeZone: "UTC" }).format(/* @__PURE__ */ new Date(`${model.today}T12:00:00Z`));
+  el(intro, "p", "la-eyebrow la-date", date);
+  el(intro, "h1", "", "\u4EBA\u751F\u5B58\u6863");
+  el(intro, "p", "la-subtitle", "\u7559\u4E0B\u4E00\u9875\u4ECA\u5929\uFF0C\u770B\u89C1\u4E00\u8DEF\u7684\u81EA\u5DF1\u3002");
+  const topActions = el(header, "div", "la-header-actions");
+  button(topActions, "\u6253\u5F00\u4ECA\u5929\u7684\u7B14\u8BB0  \u2197", "today", "la-primary");
+  button(topActions, "\uFF0B \u5199\u7BC7\u601D\u60F3", "thought", "la-secondary");
+  const sync = button(topActions, "", "sync-github", "la-secondary la-sync-button", "\u7ACB\u5373\u540C\u6B65 GitHub");
+  sync.title = "\u7ACB\u5373\u540C\u6B65 GitHub";
+  el(topActions, "span", "la-sync-status").setAttribute("role", "status");
+  const status = el(root, "div", "la-stats");
+  const hasPeriod = (period) => periodNotePaths(period).some((path) => model.paths.has(path));
+  const recordedDays = /* @__PURE__ */ new Set();
+  for (const path of model.paths) {
+    if (!basename(path).startsWith(`${model.month}-`)) continue;
+    const note = classifyNote(path, model.config);
+    if (note?.kind === "daily") recordedDays.add(note.key);
+  }
+  el(status, "span", "la-overview-label", monthLabel(model.month));
+  const days = el(status, "span");
+  el(days, "strong", "", String(recordedDays.size));
+  el(days, "span", "", " \u5929\u8BB0\u5F55");
+  const thoughts = el(status, "span");
+  el(thoughts, "strong", "", String(model.thoughtCount));
+  el(thoughts, "span", "", " \u7BC7\u601D\u60F3");
+  el(status, "span", "la-private", "\u4FDD\u5B58\u5728\u4F60\u7684\u7B14\u8BB0\u5E93");
+  const grid = el(root, "div", "la-main-grid");
+  const { calendarMode: mode, periodYear } = model;
+  const selectedDate = model.calendar.date;
+  const calendar = section(grid, "\u8BB0\u5F55\u65E5\u5386", "");
+  calendar.classList.add("la-calendar-card");
+  if (mode === "daily") {
+    const head = calendar.querySelector(".la-card-head");
+    button(head, "\u7BA1\u7406\u4E60\u60EF", "manage-habits", "la-text-button").disabled = Boolean(model.calendar.error);
+  }
+  const modes = el(calendar, "div", "la-calendar-modes");
+  modes.setAttribute("role", "group");
+  modes.setAttribute("aria-label", "\u6D4F\u89C8\u5468\u671F");
+  for (const [kind, label, description] of [
+    ["daily", "\u65E5", "\u65E5\u5386"],
+    ["monthly", "\u6708", "\u6708\u5EA6\u7B14\u8BB0"],
+    ["quarterly", "\u5B63", "\u5B63\u5EA6\u7B14\u8BB0"],
+    ["yearly", "\u5E74", "\u5E74\u5EA6\u7B14\u8BB0"]
+  ]) {
+    const entry = button(modes, label, "calendar-mode", "la-small-button", description);
+    entry.dataset.kind = kind;
+    entry.setAttribute("aria-pressed", String(mode === kind));
+  }
+  let monthInput;
+  if (mode === "daily") monthInput = renderDailyCalendar(calendar, model, hasPeriod);
+  else renderPeriodCalendar(calendar, mode, periodYear, Number(model.today.slice(0, 4)), hasPeriod);
   const noteStack = el(grid, "div", "la-note-stack");
   const articles = section(noteStack, "\u8FD1\u671F\u601D\u60F3", "\u7559\u4F4F\u4E00\u4E2A\u60F3\u6CD5");
   button(articles.querySelector(".la-card-head"), "\u67E5\u770B\u5168\u90E8 \u2197", "browse-thoughts", "la-text-button la-small");
@@ -1359,8 +1393,20 @@ function mountHome(container, model, actions) {
         case "week":
           perform(actions.openPeriod("weekly", b.dataset.anchor));
           break;
+        case "calendar-mode":
+          perform(actions.changeCalendarMode(b.dataset.kind));
+          break;
         case "period":
-          perform(actions.openPeriod(b.dataset.kind, monthStart));
+          perform(actions.openPeriod(b.dataset.kind, b.dataset.anchor));
+          break;
+        case "period-prev":
+        case "period-next": {
+          const step = mode === "yearly" ? 10 : 1;
+          perform(actions.changePeriodYear(periodYear + (b.dataset.action === "period-prev" ? -step : step)));
+          break;
+        }
+        case "period-current":
+          perform(actions.changePeriodYear(Number(model.today.slice(0, 4))));
           break;
         case "current-week":
           perform(actions.openPeriod("weekly", model.today));
@@ -1390,7 +1436,7 @@ function mountHome(container, model, actions) {
     }
   };
   const change = () => {
-    if (/^\d{4}-\d{2}$/.test(monthInput.value)) perform(actions.changeMonth(monthInput.value));
+    if (monthInput && /^\d{4}-\d{2}$/.test(monthInput.value)) perform(actions.changeMonth(monthInput.value));
   };
   const keydown = (event) => {
     const target = event.target?.closest('[data-action="day"]');
@@ -1408,14 +1454,14 @@ function mountHome(container, model, actions) {
   };
   root.addEventListener("click", click);
   root.addEventListener("keydown", keydown);
-  monthInput.addEventListener("change", change);
+  monthInput?.addEventListener("change", change);
   if (model.focusDate) {
     root.querySelector(`[data-action="day"][data-date="${model.focusDate}"]`)?.focus({ preventScroll: true });
   }
   return () => {
     root.removeEventListener("click", click);
     root.removeEventListener("keydown", keydown);
-    monthInput.removeEventListener("change", change);
+    monthInput?.removeEventListener("change", change);
   };
 }
 
@@ -1517,7 +1563,7 @@ var HelpModal = class extends import_obsidian2.Modal {
     this.titleEl.setText("\u4EBA\u751F\u5B58\u6863 \xB7 \u4F7F\u7528\u8BF4\u660E");
     const content = this.contentEl;
     const steps = [
-      ["\u6253\u5F00\u5468\u671F\u7B14\u8BB0", "\u70B9\u51FB\u65E5\u671F\u67E5\u770B\u5F53\u5929\u8BE6\u60C5\uFF0C\u518D\u70B9\u300C\u65B0\u5EFA\u65E5\u8BB0\u300D\u6216\u300C\u6253\u5F00\u65E5\u8BB0\u300D\u3002\u5468\u7B14\u8BB0\u4ECE\u5468\u53F7\u6253\u5F00\uFF0C\u6708\u3001\u5B63\u3001\u5E74\u7B14\u8BB0\u5728\u6708\u4EFD\u680F\u4E0B\u65B9\u6709\u5404\u81EA\u7684\u5165\u53E3\u3002"],
+      ["\u6253\u5F00\u5468\u671F\u7B14\u8BB0", "\u70B9\u51FB\u65E5\u671F\u67E5\u770B\u5F53\u5929\u8BE6\u60C5\uFF0C\u518D\u70B9\u300C\u65B0\u5EFA\u65E5\u8BB0\u300D\u6216\u300C\u6253\u5F00\u65E5\u8BB0\u300D\u3002\u5468\u7B14\u8BB0\u4ECE\u5468\u53F7\u6253\u5F00\uFF0C\u901A\u8FC7\u300C\u6708\uFF0F\u5B63\uFF0F\u5E74\u300D\u6D4F\u89C8\u5E76\u6253\u5F00\u6216\u521B\u5EFA\u5BF9\u5E94\u7684\u7B14\u8BB0\u3002"],
       ["\u4E60\u60EF\u6253\u5361", "\u4ECE\u8BB0\u5F55\u65E5\u5386\u7684\u300C\u7BA1\u7406\u4E60\u60EF\u300D\u6DFB\u52A0\u4E60\u60EF\u3002\u70B9\u51FB\u65E5\u5386\u4E2D\u7684\u65E5\u671F\uFF0C\u5728\u5F53\u5929\u8BE6\u60C5\u4E2D\u52FE\u9009\u3001\u8865\u6253\u5361\u6216\u64A4\u9500\u3002"],
       ["\u7559\u4F4F\u601D\u60F3", "\u70B9\u51FB\u300C\u65B0\u5EFA\u601D\u60F3\u6587\u7AE0\u300D\uFF0C\u8F93\u5165\u6807\u9898\u540E\u7EE7\u7EED\u5728 Obsidian \u4E2D\u5199\u4F5C\u3002"],
       ["\u5199\u4F5C\u63D0\u793A", "\u6253\u5F00\u5468\u671F\u7B14\u8BB0\u540E\uFF0C\u70B9\u51FB\u53F3\u4E0A\u89D2\u7684\u300C\u5199\u4F5C\u63D0\u793A\u300D\uFF0C\u5728\u4FA7\u680F\u67E5\u770B\u53EF\u9009\u7684\u8BB0\u5F55\u8981\u70B9\u3002"]
@@ -1540,6 +1586,8 @@ var HomeView = class extends import_obsidian3.ItemView {
   dispose;
   month;
   selectedDate;
+  calendarMode = "daily";
+  periodYear;
   habitFilter = "";
   renderVersion = 0;
   getViewType() {
@@ -1597,6 +1645,8 @@ var HomeView = class extends import_obsidian3.ItemView {
       thoughtCount: this.plugin.index.thoughts(Number.MAX_SAFE_INTEGER).length,
       periods: this.plugin.index.periodNotes(),
       focusDate,
+      calendarMode: this.calendarMode,
+      periodYear: this.periodYear ?? Number(this.month.slice(0, 4)),
       calendar: { ...calendar, ...habitState }
     }, {
       openPeriod: (kind, date) => this.plugin.notes.openPeriod(kind, date),
@@ -1606,6 +1656,16 @@ var HomeView = class extends import_obsidian3.ItemView {
         this.month = date.slice(0, 7);
         this.selectedDate = date;
         await this.refresh(date);
+      },
+      changeCalendarMode: (mode) => {
+        if (mode === this.calendarMode) return;
+        if (this.calendarMode === "daily") this.periodYear = Number(this.month.slice(0, 4));
+        this.calendarMode = mode;
+        return this.refresh();
+      },
+      changePeriodYear: (year) => {
+        this.periodYear = year;
+        return this.refresh();
       },
       filterHabit: (id) => {
         this.habitFilter = id;
@@ -1630,7 +1690,7 @@ var HomeView = class extends import_obsidian3.ItemView {
     this.updateSyncState(this.plugin.syncState);
     this.contentEl.scrollTop = scroll;
     if (!focusDate && previous) {
-      const replacement = Array.from(this.contentEl.querySelectorAll("[data-action]")).find((el2) => ["action", "date", "habit", "kind", "week", "path"].every((key) => el2.dataset[key] === previous[key]));
+      const replacement = Array.from(this.contentEl.querySelectorAll("[data-action]")).find((el2) => ["action", "date", "habit", "kind", "week", "anchor", "path"].every((key) => el2.dataset[key] === previous[key]));
       if (replacement?.dataset.date) {
         this.contentEl.querySelector('[data-action="day"][tabindex="0"]')?.setAttribute("tabindex", "-1");
         replacement.tabIndex = 0;
