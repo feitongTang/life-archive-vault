@@ -809,6 +809,68 @@ function classifyNote(path, config) {
   return null;
 }
 
+// src/core/habits.ts
+var HABIT_PATH = "\u4E60\u60EF\u6253\u5361.json";
+function decode(content) {
+  if (content === null) return { habits: [], completed: {} };
+  try {
+    const data = JSON.parse(content);
+    if (!Array.isArray(data.habits) || data.completed === null || typeof data.completed !== "object" || Array.isArray(data.completed)) throw new Error();
+    const ids = /* @__PURE__ */ new Set();
+    for (const habit of data.habits) {
+      if (typeof habit?.id !== "string" || !habit.id || ids.has(habit.id) || typeof habit.name !== "string" || !habit.name.trim()) throw new Error();
+      ids.add(habit.id);
+    }
+    for (const [date, completed] of Object.entries(data.completed)) {
+      parseDay(date);
+      if (!Array.isArray(completed) || completed.some((id) => !ids.has(id)) || new Set(completed).size !== completed.length) throw new Error();
+    }
+    return data;
+  } catch {
+    throw new Error(`\u65E0\u6CD5\u8BFB\u53D6\u300C${HABIT_PATH}\u300D\uFF0C\u8BF7\u68C0\u67E5\u6587\u4EF6\u683C\u5F0F\u3002`);
+  }
+}
+var HabitStore = class {
+  constructor(port) {
+    this.port = port;
+  }
+  writes = Promise.resolve();
+  async read() {
+    await this.writes;
+    return decode(await this.port.read());
+  }
+  update(change) {
+    const write = this.writes.then(() => this.port.update((content) => {
+      const data = decode(content);
+      change(data);
+      return JSON.stringify(data, null, 2) + "\n";
+    }));
+    this.writes = write.catch(() => {
+    });
+    return write;
+  }
+  add(name) {
+    return this.update((data) => {
+      const title = name.trim();
+      if (!title || title.length > 32) throw new Error("\u8BF7\u8F93\u5165 1\u201332 \u4E2A\u5B57\u7B26\u7684\u4E60\u60EF\u540D\u79F0\u3002");
+      if (data.habits.some((habit) => habit.name === title)) throw new Error("\u8FD9\u4E2A\u4E60\u60EF\u5DF2\u5B58\u5728\u3002");
+      data.habits.push({ id: crypto.randomUUID(), name: title });
+    });
+  }
+  toggle(id, date, today2) {
+    return this.update((data) => {
+      parseDay(date);
+      if (date > today2) throw new Error("\u672A\u6765\u7684\u65E5\u671F\u8FD8\u4E0D\u80FD\u6253\u5361\u3002");
+      if (!data.habits.some((habit) => habit.id === id)) throw new Error("\u627E\u4E0D\u5230\u8FD9\u4E2A\u4E60\u60EF\u3002");
+      const completed = new Set(data.completed[date]);
+      if (completed.has(id)) completed.delete(id);
+      else completed.add(id);
+      if (completed.size) data.completed[date] = [...completed];
+      else delete data.completed[date];
+    });
+  }
+};
+
 // src/core/templates.ts
 var defaultTemplates = {
   daily: "## \u4ECA\u5929\u53D1\u751F\u7684\u4E8B\n\n## \u6BCF\u65E5\u901F\u8BB0\n",
@@ -1009,7 +1071,7 @@ var ObsidianVault = class {
 };
 
 // src/obsidian/home-view.ts
-var import_obsidian2 = require("obsidian");
+var import_obsidian3 = require("obsidian");
 
 // src/ui/home.ts
 function renderSyncState(container, status) {
@@ -1041,7 +1103,7 @@ function section(parent, title, small) {
   const card = el(parent, "section", "la-card");
   const head = el(card, "div", "la-card-head");
   const group = el(head, "div");
-  el(group, "p", "la-eyebrow", small);
+  if (small) el(group, "p", "la-eyebrow", small);
   el(group, "h2", "", title);
   return card;
 }
@@ -1052,6 +1114,58 @@ function openButton(parent, text, path, cls = "") {
 }
 function basename(path) {
   return path.split("/").at(-1).replace(/\.md$/, "");
+}
+var habitColors = ["teal", "amber", "violet", "blue", "rose"];
+function habitColor(habits, id) {
+  return habitColors[habits.findIndex((habit) => habit.id === id) % habitColors.length];
+}
+function renderHabitRing(parent, habits, visible, completed) {
+  const ring = el(parent, "span", "la-habit-ring");
+  ring.setAttribute("aria-hidden", "true");
+  const size = 360 / visible.length;
+  visible.forEach((habit, index) => {
+    const arc = el(ring, "span", "la-habit-arc");
+    arc.dataset.color = habitColor(habits, habit.id);
+    arc.classList.toggle("is-done", completed.includes(habit.id));
+    const gap = visible.length === 1 ? 0 : Math.min(12, size * 0.2);
+    arc.style.setProperty("--la-arc-start", `${size * index + gap / 2}deg`);
+    arc.style.setProperty("--la-arc-size", `${size - gap}deg`);
+  });
+}
+function habitFilters(parent, habits, selected) {
+  const filters = el(parent, "div", "la-habit-filters");
+  filters.setAttribute("role", "group");
+  filters.setAttribute("aria-label", "\u7B5B\u9009\u4E60\u60EF");
+  for (const { id, name } of [{ id: "", name: "\u5168\u90E8" }, ...habits]) {
+    const filter = button(filters, "", "filter-habit", "la-small-button la-habit-filter");
+    filter.dataset.habit = id;
+    filter.setAttribute("aria-pressed", String(id === selected));
+    if (id) el(filter, "span", "la-habit-swatch").dataset.color = habitColor(habits, id);
+    el(filter, "span", "la-habit-name", name);
+  }
+}
+function habitChecklist(parent, model, noteExists) {
+  const { date, data, error } = model.calendar;
+  const checklist = el(parent, "section", "la-habit-checklist");
+  const day = parseDay(date).format("M \u6708 D \u65E5");
+  el(checklist, "h3", "", date === model.today ? `\u4ECA\u5929 \xB7 ${day}` : day);
+  if (error) el(checklist, "p", "la-error", error).setAttribute("role", "alert");
+  else if (!data?.habits.length) el(checklist, "p", "la-habit-hint", "\u5728\u300C\u7BA1\u7406\u4E60\u60EF\u300D\u4E2D\u6DFB\u52A0\u7B2C\u4E00\u4E2A\u4E60\u60EF\u3002");
+  else if (date > model.today) el(checklist, "p", "la-habit-hint", "\u8FD9\u4E00\u5929\u8FD8\u672A\u5230\u6765\u3002");
+  else {
+    const list = el(checklist, "div", "la-habit-list");
+    for (const habit of data.habits) {
+      const b = button(list, "", "toggle-habit", "la-habit-check");
+      b.dataset.habit = habit.id;
+      const done = (data.completed[date] ?? []).includes(habit.id);
+      b.setAttribute("aria-pressed", String(done));
+      const mark = el(b, "span", "la-habit-mark", done ? "\u2713" : "");
+      mark.dataset.color = habitColor(data.habits, habit.id);
+      mark.setAttribute("aria-hidden", "true");
+      el(b, "span", "la-habit-name", habit.name);
+    }
+  }
+  button(checklist, noteExists ? "\u6253\u5F00\u65E5\u7B14\u8BB0" : "\u65B0\u5EFA\u65E5\u7B14\u8BB0", "habit-note", "la-text-button");
 }
 function mountHome(container, model, actions) {
   container.replaceChildren();
@@ -1085,8 +1199,24 @@ function mountHome(container, model, actions) {
   el(thoughts, "span", "", " \u7BC7\u601D\u60F3");
   el(status, "span", "la-private", "\u4FDD\u5B58\u5728\u4F60\u7684\u7B14\u8BB0\u5E93");
   const grid = el(root, "div", "la-main-grid");
-  const calendar = section(grid, "\u8BB0\u5F55\u65E5\u5386", "\u5468\u671F\u7B14\u8BB0");
+  const { mode, date: selectedDate, data, filter } = model.calendar;
+  const habitMode = mode === "habits";
+  const habits = data?.habits ?? [];
+  const visibleHabits = filter ? habits.filter((habit) => habit.id === filter) : habits;
+  const calendar = section(grid, "\u8BB0\u5F55\u65E5\u5386", "");
   calendar.classList.add("la-calendar-card");
+  if (habitMode) {
+    const head = calendar.querySelector(".la-card-head");
+    button(head, "\u7BA1\u7406\u4E60\u60EF", "manage-habits", "la-text-button").disabled = Boolean(model.calendar.error);
+  }
+  const modes = el(calendar, "div", "la-calendar-modes");
+  modes.setAttribute("role", "group");
+  modes.setAttribute("aria-label", "\u65E5\u5386\u89C6\u56FE");
+  for (const [value, label] of [["notes", "\u5468\u671F\u7B14\u8BB0"], ["habits", "\u4E60\u60EF\u6253\u5361"]]) {
+    const toggle = button(modes, label, "calendar-mode", "la-small-button");
+    toggle.dataset.mode = value;
+    toggle.setAttribute("aria-pressed", String(mode === value));
+  }
   const nav = el(calendar, "div", "la-calendar-nav");
   const monthInput = el(nav, "input", "la-month-input");
   monthInput.type = "month";
@@ -1097,57 +1227,72 @@ function mountHome(container, model, actions) {
   button(navButtons, "\u2039", "prev", "la-icon-button", "\u4E0A\u4E2A\u6708");
   button(navButtons, "\u4ECA\u5929", "this-month", "la-small-button", "\u56DE\u5230\u672C\u6708");
   button(navButtons, "\u203A", "next", "la-icon-button", "\u4E0B\u4E2A\u6708");
+  if (habitMode && habits.length) habitFilters(calendar, habits, filter);
   const table = el(calendar, "table", "la-calendar");
-  table.setAttribute("aria-label", `${monthLabel(model.month)}\u8BB0\u5F55\u65E5\u5386`);
+  table.setAttribute("aria-label", `${monthLabel(model.month)}${habitMode ? "\u4E60\u60EF\u6253\u5361" : "\u8BB0\u5F55\u65E5\u5386"}`);
+  table.classList.toggle("la-habit-calendar", habitMode);
   const thead = el(table, "thead"), tr = el(thead, "tr");
-  for (const day of ["\u5468", "\u4E00", "\u4E8C", "\u4E09", "\u56DB", "\u4E94", "\u516D", "\u65E5"]) {
+  for (const day of habitMode ? ["\u4E00", "\u4E8C", "\u4E09", "\u56DB", "\u4E94", "\u516D", "\u65E5"] : ["\u5468", "\u4E00", "\u4E8C", "\u4E09", "\u56DB", "\u4E94", "\u516D", "\u65E5"]) {
     const th = el(tr, "th", "", day);
     th.scope = "col";
   }
   const tbody = el(table, "tbody");
-  const focus = model.focusDate ?? (model.today.startsWith(model.month) ? model.today : `${model.month}-01`);
+  const focus = model.focusDate ?? (habitMode ? selectedDate : model.today.startsWith(model.month) ? model.today : `${model.month}-01`);
   for (const week of calendarMonth(model.month)) {
     const row = el(tbody, "tr");
-    const weekCell = el(row, "th");
-    weekCell.scope = "row";
-    const weekExists = hasPeriod(periodFor("weekly", week.days[0]));
-    const wb = button(weekCell, week.key.slice(-2), "week", "la-week", `${week.key} \u5468\u7B14\u8BB0\uFF0C${weekExists ? "\u5DF2\u521B\u5EFA" : "\u5F85\u521B\u5EFA"}`);
-    wb.dataset.week = week.key;
-    wb.dataset.anchor = week.days[0];
-    if (weekExists) wb.classList.add("has-note");
+    if (!habitMode) {
+      const weekCell = el(row, "th");
+      weekCell.scope = "row";
+      const weekExists = hasPeriod(periodFor("weekly", week.days[0]));
+      const wb = button(weekCell, week.key.slice(-2), "week", "la-week", `${week.key} \u5468\u7B14\u8BB0\uFF0C${weekExists ? "\u5DF2\u521B\u5EFA" : "\u5F85\u521B\u5EFA"}`);
+      wb.dataset.week = week.key;
+      wb.dataset.anchor = week.days[0];
+      if (weekExists) wb.classList.add("has-note");
+    }
     for (const day of week.days) {
       const cell = el(row, "td");
       const exists = hasPeriod(periodFor("daily", day)), isToday = day === model.today;
-      const label = `${day}${isToday ? "\uFF0C\u4ECA\u5929" : ""}\uFF0C${exists ? "\u5DF2\u6709\u8BB0\u5F55" : "\u5C1A\u672A\u521B\u5EFA"}`;
+      const completed = data?.completed[day] ?? [];
+      const habitStatus = day > model.today ? "\u672A\u6765\u65E5\u671F" : visibleHabits.map((habit) => `${habit.name}${completed.includes(habit.id) ? "\u5DF2\u5B8C\u6210" : "\u672A\u5B8C\u6210"}`).join("\uFF0C");
+      const details = habitMode ? habitStatus : exists ? "\u5DF2\u6709\u8BB0\u5F55" : "\u5C1A\u672A\u521B\u5EFA";
+      const label = [day, isToday ? "\u4ECA\u5929" : "", details].filter(Boolean).join("\uFF0C");
       const b = button(cell, "", "day", "la-day", label);
       b.dataset.date = day;
       b.tabIndex = day === focus ? 0 : -1;
       el(b, "span", "la-day-number", String(Number(day.slice(-2))));
-      const dot = el(b, "span", "la-day-dot");
-      dot.setAttribute("aria-hidden", "true");
+      if (habitMode) {
+        b.setAttribute("aria-pressed", String(day === selectedDate));
+        if (visibleHabits.length && day <= model.today) renderHabitRing(b, habits, visibleHabits, completed);
+      } else {
+        const dot = el(b, "span", "la-day-dot");
+        dot.setAttribute("aria-hidden", "true");
+        if (!exists) dot.classList.add("is-empty");
+        if (exists) b.classList.add("has-note");
+      }
       if (!day.startsWith(model.month)) b.classList.add("is-other-month");
-      if (!exists) dot.classList.add("is-empty");
-      if (exists) b.classList.add("has-note");
       if (isToday) {
         b.classList.add("is-today");
         b.setAttribute("aria-current", "date");
       }
     }
   }
-  const legend = el(calendar, "p", "la-calendar-legend");
-  el(legend, "span", "la-legend-dot");
-  el(legend, "span", "", "\u5DF2\u6709\u8BB0\u5F55");
-  el(legend, "span", "la-legend-today");
-  el(legend, "span", "", "\u4ECA\u5929");
-  const periods = el(calendar, "div", "la-periods");
-  const longPeriodLabels = { monthly: "\u6708\u5EA6\u7B14\u8BB0", quarterly: "\u5B63\u5EA6\u7B14\u8BB0", yearly: "\u5E74\u5EA6\u7B14\u8BB0" };
-  for (const kind of ["monthly", "quarterly", "yearly"]) {
-    const p = periodFor(kind, `${model.month}-01`);
-    const exists = hasPeriod(p);
-    const b = button(periods, longPeriodLabels[kind], "period", "la-period-button");
-    b.dataset.kind = kind;
-    b.setAttribute("aria-label", `${longPeriodLabels[kind]} \xB7 ${p.key} \xB7 ${exists ? "\u6253\u5F00\u5DF2\u6709\u7B14\u8BB0" : "\u6309\u6A21\u677F\u521B\u5EFA"}`);
-    el(b, "span", "la-period-state", exists ? "\u5DF2\u8BB0\u5F55 \u2197" : "\u5F85\u8BB0\u5F55 \uFF0B");
+  if (habitMode) habitChecklist(calendar, model, hasPeriod(periodFor("daily", selectedDate)));
+  else {
+    const legend = el(calendar, "p", "la-calendar-legend");
+    el(legend, "span", "la-legend-dot");
+    el(legend, "span", "", "\u5DF2\u6709\u8BB0\u5F55");
+    el(legend, "span", "la-legend-today");
+    el(legend, "span", "", "\u4ECA\u5929");
+    const periods = el(calendar, "div", "la-periods");
+    const longPeriodLabels = { monthly: "\u6708\u5EA6\u7B14\u8BB0", quarterly: "\u5B63\u5EA6\u7B14\u8BB0", yearly: "\u5E74\u5EA6\u7B14\u8BB0" };
+    for (const kind of ["monthly", "quarterly", "yearly"]) {
+      const p = periodFor(kind, `${model.month}-01`);
+      const exists = hasPeriod(p);
+      const b = button(periods, longPeriodLabels[kind], "period", "la-period-button");
+      b.dataset.kind = kind;
+      b.setAttribute("aria-label", `${longPeriodLabels[kind]} \xB7 ${p.key} \xB7 ${exists ? "\u6253\u5F00\u5DF2\u6709\u7B14\u8BB0" : "\u6309\u6A21\u677F\u521B\u5EFA"}`);
+      el(b, "span", "la-period-state", exists ? "\u5DF2\u8BB0\u5F55 \u2197" : "\u5F85\u8BB0\u5F55 \uFF0B");
+    }
   }
   const noteStack = el(grid, "div", "la-note-stack");
   const articles = section(noteStack, "\u8FD1\u671F\u601D\u60F3", "\u7559\u4F4F\u4E00\u4E2A\u60F3\u6CD5");
@@ -1200,8 +1345,23 @@ function mountHome(container, model, actions) {
         case "file":
           perform(actions.openFile(b.dataset.path));
           break;
+        case "calendar-mode":
+          perform(actions.switchCalendar(b.dataset.mode));
+          break;
+        case "manage-habits":
+          perform(actions.manageHabits());
+          break;
+        case "filter-habit":
+          perform(actions.filterHabit(b.dataset.habit));
+          break;
+        case "toggle-habit":
+          perform(actions.toggleHabit(b.dataset.habit, selectedDate));
+          break;
+        case "habit-note":
+          perform(actions.openPeriod("daily", selectedDate));
+          break;
         case "day":
-          perform(actions.openPeriod("daily", b.dataset.date));
+          perform(habitMode ? actions.selectHabitDate(b.dataset.date) : actions.openPeriod("daily", b.dataset.date));
           break;
         case "week":
           perform(actions.openPeriod("weekly", b.dataset.anchor));
@@ -1264,9 +1424,119 @@ function mountHome(container, model, actions) {
   };
 }
 
+// src/obsidian/modals.ts
+var import_obsidian2 = require("obsidian");
+var ThoughtModal = class extends import_obsidian2.Modal {
+  constructor(plugin) {
+    super(plugin.app);
+    this.plugin = plugin;
+  }
+  onOpen() {
+    this.titleEl.setText("\u7559\u4F4F\u4E00\u4E2A\u60F3\u6CD5");
+    this.contentEl.createEl("p", { text: "\u7ED9\u8FD9\u7BC7\u601D\u60F3\u6587\u7AE0\u8D77\u4E2A\u540D\u5B57\uFF0C\u6B63\u6587\u5728 Obsidian \u4E2D\u7EE7\u7EED\u5199\u3002", cls: "setting-item-description" });
+    let title = "";
+    const input = this.contentEl.createEl("input", { type: "text", placeholder: "\u4F8B\u5982\uFF1A\u5173\u4E8E\u5B66\u4E60\u7684\u51E0\u4E2A\u95EE\u9898", cls: "la-title-input" });
+    input.setAttribute("aria-label", "\u6587\u7AE0\u6807\u9898");
+    const error = this.contentEl.createEl("p", { cls: "la-error" });
+    error.setAttribute("role", "alert");
+    const create = this.contentEl.createEl("button", { text: "\u521B\u5EFA\u6587\u7AE0", cls: "mod-cta" });
+    const submit = async () => {
+      title = input.value;
+      create.disabled = true;
+      try {
+        await this.plugin.notes.openThought(title, today());
+        this.close();
+      } catch (e) {
+        error.setText(e instanceof Error ? e.message : "\u521B\u5EFA\u5931\u8D25");
+        create.disabled = false;
+      }
+    };
+    create.addEventListener("click", () => {
+      void submit();
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        void submit();
+      }
+    });
+    input.focus();
+  }
+};
+var HabitModal = class extends import_obsidian2.Modal {
+  constructor(app, habits, add) {
+    super(app);
+    this.habits = habits;
+    this.add = add;
+  }
+  onOpen() {
+    this.titleEl.setText("\u7BA1\u7406\u4E60\u60EF");
+    if (this.habits.length) {
+      const list = this.contentEl.createEl("ul");
+      for (const habit of this.habits) list.createEl("li", { text: habit.name });
+    }
+    const form = this.contentEl.createEl("form");
+    const input = form.createEl("input", { type: "text", placeholder: "\u4F8B\u5982\uFF1A\u9605\u8BFB", cls: "la-title-input" });
+    input.setAttribute("aria-label", "\u65B0\u4E60\u60EF\u540D\u79F0");
+    input.required = true;
+    input.maxLength = 32;
+    const error = form.createEl("p", { cls: "la-error" });
+    error.setAttribute("role", "alert");
+    const submit = form.createEl("button", { text: "\u6DFB\u52A0\u4E60\u60EF", cls: "mod-cta", attr: { type: "submit" } });
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (submit.disabled) return;
+      submit.disabled = true;
+      void this.add(input.value).then(() => this.close(), (cause) => {
+        error.setText(cause instanceof Error ? cause.message : "\u6DFB\u52A0\u5931\u8D25");
+        submit.disabled = false;
+        input.focus();
+      });
+    });
+    input.focus();
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+var NotesModal = class extends import_obsidian2.FuzzySuggestModal {
+  constructor(app, notes, title, openNote) {
+    super(app);
+    this.notes = notes;
+    this.openNote = openNote;
+    this.setPlaceholder(title);
+    this.setInstructions([{ command: "\u2191 \u2193", purpose: "\u9009\u62E9\u7B14\u8BB0" }, { command: "\u21B5", purpose: "\u6253\u5F00" }, { command: "esc", purpose: "\u5173\u95ED" }]);
+  }
+  getItems() {
+    return this.notes;
+  }
+  getItemText(note) {
+    return note.path.replace(/\.md$/, "");
+  }
+  onChooseItem(note) {
+    void this.openNote(note.path).catch((e) => new import_obsidian2.Notice(e instanceof Error ? e.message : "\u65E0\u6CD5\u6253\u5F00\u7B14\u8BB0"));
+  }
+};
+var HelpModal = class extends import_obsidian2.Modal {
+  onOpen() {
+    this.titleEl.setText("\u4EBA\u751F\u5B58\u6863 \xB7 \u4F7F\u7528\u8BF4\u660E");
+    const content = this.contentEl;
+    const steps = [
+      ["\u6253\u5F00\u5468\u671F\u7B14\u8BB0", "\u70B9\u51FB\u65E5\u671F\u3001\u5468\u53F7\u6216\u6708\uFF0F\u5B63\uFF0F\u5E74\u6309\u94AE\uFF0C\u6253\u5F00\u5BF9\u5E94\u5468\u671F\u7684\u7B14\u8BB0\u3002\u5DF2\u6709\u8BB0\u5F55\u7684\u65E5\u671F\u4F1A\u663E\u793A\u5706\u70B9\u3002"],
+      ["\u4E60\u60EF\u6253\u5361", "\u5207\u6362\u5230\u300C\u4E60\u60EF\u6253\u5361\u300D\uFF0C\u4ECE\u300C\u7BA1\u7406\u4E60\u60EF\u300D\u6DFB\u52A0\u4E60\u60EF\u3002\u70B9\u51FB\u65E5\u671F\u53EF\u4EE5\u52FE\u9009\u3001\u8865\u6253\u5361\u6216\u64A4\u9500\u3002"],
+      ["\u7559\u4F4F\u601D\u60F3", "\u70B9\u51FB\u300C\u65B0\u5EFA\u601D\u60F3\u6587\u7AE0\u300D\uFF0C\u8F93\u5165\u6807\u9898\u540E\u7EE7\u7EED\u5728 Obsidian \u4E2D\u5199\u4F5C\u3002"],
+      ["\u5199\u4F5C\u63D0\u793A", "\u6253\u5F00\u5468\u671F\u7B14\u8BB0\u540E\uFF0C\u70B9\u51FB\u53F3\u4E0A\u89D2\u7684\u300C\u5199\u4F5C\u63D0\u793A\u300D\uFF0C\u5728\u4FA7\u680F\u67E5\u770B\u53EF\u9009\u7684\u8BB0\u5F55\u8981\u70B9\u3002"]
+    ];
+    for (const [title, text] of steps) {
+      content.createEl("h3", { text: title });
+      content.createEl("p", { text });
+    }
+  }
+};
+
 // src/obsidian/home-view.ts
 var HOME_VIEW = "life-archive-home";
-var HomeView = class extends import_obsidian2.ItemView {
+var HomeView = class extends import_obsidian3.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
@@ -1274,7 +1544,10 @@ var HomeView = class extends import_obsidian2.ItemView {
   }
   dispose;
   month;
-  focusDate;
+  mode = "notes";
+  habitDate;
+  habitFilter = "";
+  renderVersion = 0;
   getViewType() {
     return HOME_VIEW;
   }
@@ -1289,52 +1562,95 @@ var HomeView = class extends import_obsidian2.ItemView {
     await this.refresh();
   }
   async onClose() {
+    this.renderVersion++;
     this.dispose?.();
     this.contentEl.empty();
   }
   updateSyncState(status) {
     renderSyncState(this.contentEl, status);
     const button2 = this.contentEl.querySelector('[data-action="sync-github"]');
-    if (button2) (0, import_obsidian2.setIcon)(button2, status.state === "success" ? "check" : status.state === "error" ? "x" : "refresh-cw");
+    if (button2) (0, import_obsidian3.setIcon)(button2, status.state === "success" ? "check" : status.state === "error" ? "x" : "refresh-cw");
   }
-  async refresh() {
+  async changeMonth(month, focusDate) {
+    assertMonth(month);
+    this.month = month;
+    this.habitDate = void 0;
+    await this.refresh(focusDate);
+  }
+  async refresh(focusDate) {
+    const version = ++this.renderVersion;
+    const currentDay = today();
+    const habitDate = this.habitDate ?? (currentDay.startsWith(this.month) ? currentDay : `${this.month}-01`);
+    const calendar = { mode: this.mode, date: habitDate, filter: this.habitFilter };
+    const habitState = this.mode === "habits" ? await this.plugin.habits.read().then((data) => ({ data }), (error) => ({ error: String(error instanceof Error ? error.message : error) })) : {};
+    if (version !== this.renderVersion) return;
+    if (habitState.data && !habitState.data.habits.some((habit) => habit.id === calendar.filter)) {
+      this.habitFilter = calendar.filter = "";
+    }
     const scroll = this.contentEl.scrollTop;
     const active = this.contentEl.ownerDocument.activeElement;
-    const oldDate = active?.dataset.date, oldAction = active?.dataset.action;
+    const previous = active && this.contentEl.contains(active) ? active.dataset : void 0;
     this.dispose?.();
     this.dispose = mountHome(this.contentEl, {
-      today: today(),
+      today: currentDay,
       month: this.month,
       config: this.plugin.config,
       paths: new Set(this.plugin.allPaths()),
       thoughts: this.plugin.index.thoughts(5),
       thoughtCount: this.plugin.index.thoughts(Number.MAX_SAFE_INTEGER).length,
       periods: this.plugin.index.periodNotes(),
-      focusDate: this.focusDate
+      focusDate,
+      calendar: { ...calendar, ...habitState }
     }, {
       openPeriod: (kind, date) => this.plugin.notes.openPeriod(kind, date),
       openThought: () => this.plugin.newThought(),
-      syncGitHub: () => this.plugin.syncGitHub(true),
-      openFile: (path) => this.plugin.port.open(path),
-      changeMonth: (month, focusDate) => {
-        this.month = month;
-        this.focusDate = focusDate;
+      switchCalendar: (mode) => {
+        if (mode === this.mode) return;
+        this.mode = mode;
+        this.habitFilter = "";
+        this.habitDate = void 0;
         return this.refresh();
       },
+      selectHabitDate: (date) => {
+        this.month = date.slice(0, 7);
+        this.habitDate = date;
+        return this.refresh(date);
+      },
+      filterHabit: (id) => {
+        this.habitFilter = id;
+        return this.refresh();
+      },
+      toggleHabit: async (id, date) => {
+        await this.plugin.habits.toggle(id, date, today());
+        await this.refresh();
+      },
+      manageHabits: () => new HabitModal(this.app, habitState.data?.habits ?? [], async (name) => {
+        await this.plugin.habits.add(name);
+        await this.refresh();
+      }).open(),
+      syncGitHub: () => this.plugin.syncGitHub(true),
+      openFile: (path) => this.plugin.port.open(path),
+      changeMonth: (month, date) => this.changeMonth(month, date),
       browse: (kind) => this.plugin.browse(kind),
       settings: () => this.plugin.openSettings(),
       help: () => this.plugin.help(),
-      error: (message) => new import_obsidian2.Notice(message)
+      error: (message) => new import_obsidian3.Notice(message)
     });
     this.updateSyncState(this.plugin.syncState);
     this.contentEl.scrollTop = scroll;
-    if (oldDate && !this.focusDate) this.contentEl.querySelector(`[data-date="${oldDate}"]`)?.focus({ preventScroll: true });
-    else if (oldAction && ["prev", "next", "this-month"].includes(oldAction)) this.contentEl.querySelector(`[data-action="${oldAction}"]`)?.focus({ preventScroll: true });
+    if (!focusDate && previous) {
+      const replacement = Array.from(this.contentEl.querySelectorAll("[data-action]")).find((el2) => ["action", "date", "habit", "mode", "kind", "week", "path"].every((key) => el2.dataset[key] === previous[key]));
+      if (replacement?.dataset.date) {
+        this.contentEl.querySelector('[data-action="day"][tabindex="0"]')?.setAttribute("tabindex", "-1");
+        replacement.tabIndex = 0;
+      }
+      replacement?.focus({ preventScroll: true });
+    }
   }
 };
 
 // src/obsidian/writing-guide-view.ts
-var import_obsidian3 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 
 // src/ui/writing-guide.ts
 var guides = {
@@ -1417,7 +1733,7 @@ function renderWritingGuide(root, path, config) {
 var VIEW_TYPE = "life-archive-writing-guide";
 var TITLE = "\u5199\u4F5C\u63D0\u793A";
 var ICON = "notebook-pen";
-var WritingGuideView = class extends import_obsidian3.ItemView {
+var WritingGuideView = class extends import_obsidian4.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
@@ -1452,17 +1768,17 @@ function registerWritingGuide(plugin) {
     await workspace.revealLeaf(leaf);
     if (leaf.view instanceof WritingGuideView) {
       const view = currentView();
-      leaf.view.refresh(view instanceof import_obsidian3.MarkdownView ? view.file?.path ?? null : path);
+      leaf.view.refresh(view instanceof import_obsidian4.MarkdownView ? view.file?.path ?? null : path);
     }
   };
   const show = (path) => {
-    void open(path).catch(() => new import_obsidian3.Notice("\u65E0\u6CD5\u6253\u5F00\u5199\u4F5C\u63D0\u793A"));
+    void open(path).catch(() => new import_obsidian4.Notice("\u65E0\u6CD5\u6253\u5F00\u5199\u4F5C\u63D0\u793A"));
   };
   const refresh = () => {
     const views = /* @__PURE__ */ new Set();
     for (const leaf of workspace.getLeavesOfType("markdown")) {
       const view2 = leaf.view;
-      if (!(view2 instanceof import_obsidian3.MarkdownView) || !writingGuideKind(view2.file?.path ?? null, plugin.config)) continue;
+      if (!(view2 instanceof import_obsidian4.MarkdownView) || !writingGuideKind(view2.file?.path ?? null, plugin.config)) continue;
       views.add(view2);
       if (!actions.has(view2)) {
         const action = view2.addAction(ICON, TITLE, () => {
@@ -1480,14 +1796,14 @@ function registerWritingGuide(plugin) {
       }
     }
     const view = currentView();
-    const path = view instanceof import_obsidian3.MarkdownView ? view.file?.path ?? null : null;
+    const path = view instanceof import_obsidian4.MarkdownView ? view.file?.path ?? null : null;
     for (const leaf of workspace.getLeavesOfType(VIEW_TYPE)) {
       if (leaf.view instanceof WritingGuideView) leaf.view.refresh(path);
     }
   };
   plugin.addCommand({ id: "writing-guide", name: "\u6253\u5F00\u5199\u4F5C\u63D0\u793A", checkCallback: (checking) => {
     const view = currentView();
-    const path = view instanceof import_obsidian3.MarkdownView ? view.file?.path : void 0;
+    const path = view instanceof import_obsidian4.MarkdownView ? view.file?.path : void 0;
     if (!path || !writingGuideKind(path, plugin.config)) return false;
     if (!checking) show(path);
     return true;
@@ -1506,8 +1822,8 @@ function registerWritingGuide(plugin) {
 }
 
 // src/obsidian/settings.ts
-var import_obsidian4 = require("obsidian");
-var ArchiveSettings = class extends import_obsidian4.PluginSettingTab {
+var import_obsidian5 = require("obsidian");
+var ArchiveSettings = class extends import_obsidian5.PluginSettingTab {
   constructor(archive) {
     super(archive.app, archive);
     this.archive = archive;
@@ -1518,13 +1834,13 @@ var ArchiveSettings = class extends import_obsidian4.PluginSettingTab {
     root.createEl("h2", { text: "\u4EBA\u751F\u5B58\u6863" });
     root.createEl("p", { text: "\u7BA1\u7406\u7B14\u8BB0\u76EE\u5F55\u3001\u6A21\u677F\u548C\u540C\u6B65\u3002", cls: "setting-item-description" });
     const draft = structuredClone(this.archive.config);
-    new import_obsidian4.Setting(root).setName("\u542F\u52A8\u65F6\u6253\u5F00\u4EBA\u751F\u5B58\u6863").addToggle((t) => t.setValue(draft.openOnStartup).onChange((v) => {
+    new import_obsidian5.Setting(root).setName("\u542F\u52A8\u65F6\u6253\u5F00\u4EBA\u751F\u5B58\u6863").addToggle((t) => t.setValue(draft.openOnStartup).onChange((v) => {
       draft.openOnStartup = v;
     }));
     root.createEl("h3", { text: "\u7B14\u8BB0\u76EE\u5F55" });
-    new import_obsidian4.Setting(root).setName("\u5468\u671F\u7B14\u8BB0").setDesc("\u6309\u5E74\u4EFD\u5B58\u653E\u4E8E \u5468\u671F\u7B14\u8BB0\u3002\u65E5\u7B14\u8BB0\u518D\u6309\u6708\u4EFD\u5F52\u6863\u3002");
+    new import_obsidian5.Setting(root).setName("\u5468\u671F\u7B14\u8BB0").setDesc("\u6309\u5E74\u4EFD\u5B58\u653E\u4E8E \u5468\u671F\u7B14\u8BB0\u3002\u65E5\u7B14\u8BB0\u518D\u6309\u6708\u4EFD\u5F52\u6863\u3002");
     const names = { thoughts: "\u601D\u60F3\u6587\u7AE0", templates: "\u6A21\u677F\u76EE\u5F55" };
-    for (const kind of Object.keys(names)) new import_obsidian4.Setting(root).setName(names[kind]).addText((t) => t.setValue(draft.paths[kind]).onChange((value) => {
+    for (const kind of Object.keys(names)) new import_obsidian5.Setting(root).setName(names[kind]).addText((t) => t.setValue(draft.paths[kind]).onChange((value) => {
       const old = draft.paths[kind];
       draft.paths[kind] = value;
       if (kind === "templates") for (const templateKind of Object.keys(draft.templates)) {
@@ -1533,97 +1849,24 @@ var ArchiveSettings = class extends import_obsidian4.PluginSettingTab {
     }));
     root.createEl("p", { text: "\u4FEE\u6539\u76EE\u5F55\u4E0D\u4F1A\u642C\u52A8\u5DF2\u6709\u7B14\u8BB0\uFF1B\u8BF7\u5148\u5728 Obsidian \u4E2D\u79FB\u52A8\u9700\u8981\u8FC1\u79FB\u7684\u5185\u5BB9\u3002\u4E0D\u540C\u7528\u9014\u7684\u76EE\u5F55\u4E0D\u80FD\u76F8\u4E92\u5305\u542B\u3002", cls: "setting-item-description" });
     root.createEl("h3", { text: "\u7B14\u8BB0\u6A21\u677F" });
-    for (const kind of Object.keys(TEMPLATE_NAMES)) new import_obsidian4.Setting(root).setName(kind === "thought" ? TEMPLATE_NAMES.thought : PERIOD_LABELS[kind]).addText((t) => t.setValue(draft.templates[kind]).onChange((value) => {
+    for (const kind of Object.keys(TEMPLATE_NAMES)) new import_obsidian5.Setting(root).setName(kind === "thought" ? TEMPLATE_NAMES.thought : PERIOD_LABELS[kind]).addText((t) => t.setValue(draft.templates[kind]).onChange((value) => {
       draft.templates[kind] = value;
     }));
     root.createEl("p", { text: "\u652F\u6301 {{date}}\u3001{{title}}\u3001{{period}}\u3001{{start}}\u3001{{end}}\u3001{{monthNote}}\u3002\u6A21\u677F\u4FDD\u5B58\u5728\u7B14\u8BB0\u5E93\u4E2D\uFF0C\u53EF\u76F4\u63A5\u7F16\u8F91\u3002", cls: "setting-item-description" });
     root.createEl("h3", { text: "GitHub \u540C\u6B65" });
-    new import_obsidian4.Setting(root).setName("\u79C1\u6709\u4ED3\u5E93\u514B\u9686\u5730\u5740").setDesc("\u6253\u5F00 Vault \u65F6\u540C\u6B65\uFF0C\u4FDD\u5B58\u540E\u7B49\u5F85 30 \u79D2\u5408\u5E76\u540C\u6B65\u3002\u7559\u7A7A\u53EF\u505C\u7528\u3002").addText((t) => t.setValue(draft.githubRemote).onChange((value) => {
+    new import_obsidian5.Setting(root).setName("\u79C1\u6709\u4ED3\u5E93\u514B\u9686\u5730\u5740").setDesc("\u6253\u5F00 Vault \u65F6\u540C\u6B65\uFF0C\u4FDD\u5B58\u540E\u7B49\u5F85 30 \u79D2\u5408\u5E76\u540C\u6B65\u3002\u7559\u7A7A\u53EF\u505C\u7528\u3002").addText((t) => t.setValue(draft.githubRemote).onChange((value) => {
       draft.githubRemote = value.trim();
     }));
     root.createEl("h3", { text: "\u4FDD\u5B58" });
-    new import_obsidian4.Setting(root).setName("\u4FDD\u5B58\u8BBE\u7F6E").setDesc("\u6821\u9A8C\u8DEF\u5F84\u540E\u751F\u6548\uFF1B\u65B0\u76EE\u5F55\u4E0E\u7F3A\u5931\u6A21\u677F\u4F1A\u81EA\u52A8\u8865\u9F50\uFF0C\u5DF2\u6709\u6587\u4EF6\u4FDD\u7559\u3002").addButton((b) => b.setButtonText("\u4FDD\u5B58\u8BBE\u7F6E").setCta().onClick(async () => {
+    new import_obsidian5.Setting(root).setName("\u4FDD\u5B58\u8BBE\u7F6E").setDesc("\u6821\u9A8C\u8DEF\u5F84\u540E\u751F\u6548\uFF1B\u65B0\u76EE\u5F55\u4E0E\u7F3A\u5931\u6A21\u677F\u4F1A\u81EA\u52A8\u8865\u9F50\uFF0C\u5DF2\u6709\u6587\u4EF6\u4FDD\u7559\u3002").addButton((b) => b.setButtonText("\u4FDD\u5B58\u8BBE\u7F6E").setCta().onClick(async () => {
       try {
         await this.archive.updateConfig(draft);
-        new import_obsidian4.Notice("\u4EBA\u751F\u5B58\u6863\u8BBE\u7F6E\u5DF2\u4FDD\u5B58");
+        new import_obsidian5.Notice("\u4EBA\u751F\u5B58\u6863\u8BBE\u7F6E\u5DF2\u4FDD\u5B58");
         this.display();
       } catch (e) {
-        new import_obsidian4.Notice(e instanceof Error ? e.message : "\u8BBE\u7F6E\u4FDD\u5B58\u5931\u8D25");
+        new import_obsidian5.Notice(e instanceof Error ? e.message : "\u8BBE\u7F6E\u4FDD\u5B58\u5931\u8D25");
       }
     }));
-  }
-};
-
-// src/obsidian/modals.ts
-var import_obsidian5 = require("obsidian");
-var ThoughtModal = class extends import_obsidian5.Modal {
-  constructor(plugin) {
-    super(plugin.app);
-    this.plugin = plugin;
-  }
-  onOpen() {
-    this.titleEl.setText("\u7559\u4F4F\u4E00\u4E2A\u60F3\u6CD5");
-    this.contentEl.createEl("p", { text: "\u7ED9\u8FD9\u7BC7\u601D\u60F3\u6587\u7AE0\u8D77\u4E2A\u540D\u5B57\uFF0C\u6B63\u6587\u5728 Obsidian \u4E2D\u7EE7\u7EED\u5199\u3002", cls: "setting-item-description" });
-    let title = "";
-    const input = this.contentEl.createEl("input", { type: "text", placeholder: "\u4F8B\u5982\uFF1A\u5173\u4E8E\u5B66\u4E60\u7684\u51E0\u4E2A\u95EE\u9898", cls: "la-title-input" });
-    input.setAttribute("aria-label", "\u6587\u7AE0\u6807\u9898");
-    const error = this.contentEl.createEl("p", { cls: "la-error" });
-    error.setAttribute("role", "alert");
-    const create = this.contentEl.createEl("button", { text: "\u521B\u5EFA\u6587\u7AE0", cls: "mod-cta" });
-    const submit = async () => {
-      title = input.value;
-      create.disabled = true;
-      try {
-        await this.plugin.notes.openThought(title, today());
-        this.close();
-      } catch (e) {
-        error.setText(e instanceof Error ? e.message : "\u521B\u5EFA\u5931\u8D25");
-        create.disabled = false;
-      }
-    };
-    create.addEventListener("click", () => {
-      void submit();
-    });
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        void submit();
-      }
-    });
-    input.focus();
-  }
-};
-var NotesModal = class extends import_obsidian5.FuzzySuggestModal {
-  constructor(app, notes, title, openNote) {
-    super(app);
-    this.notes = notes;
-    this.openNote = openNote;
-    this.setPlaceholder(title);
-    this.setInstructions([{ command: "\u2191 \u2193", purpose: "\u9009\u62E9\u7B14\u8BB0" }, { command: "\u21B5", purpose: "\u6253\u5F00" }, { command: "esc", purpose: "\u5173\u95ED" }]);
-  }
-  getItems() {
-    return this.notes;
-  }
-  getItemText(note) {
-    return note.path.replace(/\.md$/, "");
-  }
-  onChooseItem(note) {
-    void this.openNote(note.path).catch((e) => new import_obsidian5.Notice(e instanceof Error ? e.message : "\u65E0\u6CD5\u6253\u5F00\u7B14\u8BB0"));
-  }
-};
-var HelpModal = class extends import_obsidian5.Modal {
-  onOpen() {
-    this.titleEl.setText("\u4EBA\u751F\u5B58\u6863 \xB7 \u4F7F\u7528\u8BF4\u660E");
-    const content = this.contentEl;
-    const steps = [
-      ["\u6253\u5F00\u5468\u671F\u7B14\u8BB0", "\u70B9\u51FB\u65E5\u671F\u3001\u5468\u53F7\u6216\u6708\uFF0F\u5B63\uFF0F\u5E74\u6309\u94AE\uFF0C\u6253\u5F00\u5BF9\u5E94\u5468\u671F\u7684\u7B14\u8BB0\u3002\u5DF2\u6709\u8BB0\u5F55\u7684\u65E5\u671F\u4F1A\u663E\u793A\u5706\u70B9\u3002"],
-      ["\u7559\u4F4F\u601D\u60F3", "\u70B9\u51FB\u300C\u65B0\u5EFA\u601D\u60F3\u6587\u7AE0\u300D\uFF0C\u8F93\u5165\u6807\u9898\u540E\u7EE7\u7EED\u5728 Obsidian \u4E2D\u5199\u4F5C\u3002"],
-      ["\u5199\u4F5C\u63D0\u793A", "\u6253\u5F00\u5468\u671F\u7B14\u8BB0\u540E\uFF0C\u70B9\u51FB\u53F3\u4E0A\u89D2\u7684\u300C\u5199\u4F5C\u63D0\u793A\u300D\uFF0C\u5728\u4FA7\u680F\u67E5\u770B\u53EF\u9009\u7684\u8BB0\u5F55\u8981\u70B9\u3002"]
-    ];
-    for (const [title, text] of steps) {
-      content.createEl("h3", { text: title });
-      content.createEl("p", { text });
-    }
   }
 };
 
@@ -1712,6 +1955,7 @@ var LifeArchive = class extends import_obsidian6.Plugin {
   config;
   port;
   notes;
+  habits;
   index;
   refreshTimer = null;
   ready = false;
@@ -1729,6 +1973,21 @@ var LifeArchive = class extends import_obsidian6.Plugin {
     }
     this.port = new ObsidianVault(this.app);
     this.notes = new NoteService(this.config, this.port);
+    const vault = this.app.vault;
+    this.habits = new HabitStore({
+      read: async () => {
+        const entry = vault.getAbstractFileByPath(HABIT_PATH);
+        if (!entry) return null;
+        if (!(entry instanceof import_obsidian6.TFile)) throw new Error(`\u300C${HABIT_PATH}\u300D\u5DF2\u88AB\u76EE\u5F55\u5360\u7528\u3002`);
+        return vault.read(entry);
+      },
+      update: async (change) => {
+        const entry = vault.getAbstractFileByPath(HABIT_PATH);
+        if (entry instanceof import_obsidian6.TFile) await vault.process(entry, change);
+        else if (!entry) await vault.create(HABIT_PATH, change(null));
+        else throw new Error(`\u300C${HABIT_PATH}\u300D\u5DF2\u88AB\u76EE\u5F55\u5360\u7528\u3002`);
+      }
+    });
     this.index = new ArchiveIndex(this.config);
     this.registerView(HOME_VIEW, (leaf) => new HomeView(leaf, this));
     this.refreshWritingGuide = registerWritingGuide(this);
@@ -1756,6 +2015,7 @@ var LifeArchive = class extends import_obsidian6.Plugin {
       else await this.openHome();
     });
     const update = (file) => {
+      if (file.path === HABIT_PATH) this.requestRefresh();
       if (!(file instanceof import_obsidian6.TFile) || file.extension !== "md") return;
       this.index.upsert(this.port.entry(file));
       if (this.index.has(file.path)) this.requestRefresh();
@@ -1765,13 +2025,13 @@ var LifeArchive = class extends import_obsidian6.Plugin {
     this.registerEvent(this.app.vault.on("delete", (file) => {
       const relevant = this.index.has(file.path);
       this.index.remove(file.path);
-      if (relevant) this.requestRefresh();
+      if (relevant || file.path === HABIT_PATH) this.requestRefresh();
     }));
     this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
       const relevant = this.index.has(oldPath);
       this.index.remove(oldPath);
       update(file);
-      if (relevant) this.requestRefresh();
+      if (relevant || oldPath === HABIT_PATH) this.requestRefresh();
     }));
     this.registerEvent(this.app.vault.on("create", () => this.scheduleGitHubSync()));
     this.registerEvent(this.app.vault.on("modify", () => this.scheduleGitHubSync()));
