@@ -8748,7 +8748,8 @@ function renderTrend(parent, points) {
   const axis = el(trend, "div", "la-trend-axis");
   axis.setAttribute("aria-hidden", "true");
   for (const { month, score } of points) {
-    const time = el(axis, "time", "", Number(month.slice(5)) + "\u6708");
+    const time = el(axis, "time", "", String(Number(month.slice(5))));
+    el(time, "span", "la-month-unit", "\u6708");
     time.dateTime = month;
     time.title = `${monthLabel(month)} \xB7 ${score === null ? "\u65E0\u8BC4\u5206" : score + "/5"}`;
   }
@@ -9083,10 +9084,8 @@ function mountHome(container, model, actions) {
   const { calendarMode: mode, periodYear } = model;
   const selectedDate = model.calendar.date;
   const { card: calendar, header: calendarHeader } = panel(grid, "\u8BB0\u5F55\u65E5\u5386", "la-calendar-card");
-  if (mode === "daily") {
-    button(calendarHeader, "\u7BA1\u7406\u4E60\u60EF", "manage-habits", "la-text-button").disabled = Boolean(model.calendar.error);
-  }
-  const modes = el(calendar, "div", "la-calendar-modes");
+  const calendarTools = el(calendarHeader, "div", "la-calendar-tools");
+  const modes = el(calendarTools, "div", "la-calendar-modes");
   modes.setAttribute("role", "group");
   modes.setAttribute("aria-label", "\u6D4F\u89C8\u5468\u671F");
   for (const [kind, label, description] of [
@@ -9099,11 +9098,15 @@ function mountHome(container, model, actions) {
     entry.dataset.kind = kind;
     entry.setAttribute("aria-pressed", String(mode === kind));
   }
+  if (mode === "daily") {
+    button(calendarTools, "\u7BA1\u7406\u4E60\u60EF", "manage-habits", "la-text-button").disabled = Boolean(model.calendar.error);
+  }
   let monthInput;
   if (mode === "daily") monthInput = renderDailyCalendar(calendar, model, hasPeriod);
   else renderPeriodCalendar(calendar, mode, periodYear, Number(model.today.slice(0, 4)), hasPeriod);
-  renderReviewSummary(grid, model.review);
-  renderChapter(root, model.chapter);
+  const overview = el(grid, "div", "la-overview");
+  renderReviewSummary(overview, model.review);
+  renderChapter(overview, model.chapter);
   const notes = el(root, "section", "la-recent-notes");
   notes.setAttribute("aria-label", "\u8FD1\u671F\u8BB0\u5F55");
   const { card: articles, header: articlesHeader } = panel(notes, "\u8FD1\u671F\u601D\u60F3");
