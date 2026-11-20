@@ -1219,23 +1219,29 @@ function mountHome(container, model, actions) {
   button(navButtons, "\u2039", "prev", "la-icon-button", "\u4E0A\u4E2A\u6708");
   button(navButtons, "\u4ECA\u5929", "this-month", "la-small-button", "\u56DE\u5230\u4ECA\u5929");
   button(navButtons, "\u203A", "next", "la-icon-button", "\u4E0B\u4E2A\u6708");
-  const periodMenu = el(nav, "details", "la-period-menu");
-  const periodTrigger = el(periodMenu, "summary", "", "\u5468\u671F\u7B14\u8BB0");
-  periodTrigger.dataset.action = "period-menu";
-  const periods = el(periodMenu, "div", "la-period-menu-items");
-  const longPeriodLabels = { monthly: "\u6708\u5EA6\u7B14\u8BB0", quarterly: "\u5B63\u5EA6\u7B14\u8BB0", yearly: "\u5E74\u5EA6\u7B14\u8BB0" };
+  const periods = el(calendar, "div", "la-period-shortcuts");
+  periods.setAttribute("role", "group");
+  periods.setAttribute("aria-label", "\u5468\u671F\u7B14\u8BB0");
+  const monthStart = `${model.month}-01`;
+  const month = parseDay(monthStart);
+  const periodLabels = {
+    monthly: `${month.month() + 1} \u6708\u7B14\u8BB0`,
+    quarterly: `\u7B2C ${month.quarter()} \u5B63\u5EA6\u7B14\u8BB0`,
+    yearly: `${month.year()} \u5E74\u7B14\u8BB0`
+  };
   for (const kind of ["monthly", "quarterly", "yearly"]) {
-    const period = periodFor(kind, `${model.month}-01`);
+    const period = periodFor(kind, monthStart);
     const exists = hasPeriod(period);
-    const item = button(
+    const shortcut = button(
       periods,
-      longPeriodLabels[kind],
+      periodLabels[kind],
       "period",
-      "la-period-menu-item",
-      `${longPeriodLabels[kind]} \xB7 ${period.key} \xB7 ${exists ? "\u6253\u5F00\u5DF2\u6709\u7B14\u8BB0" : "\u6309\u6A21\u677F\u521B\u5EFA"}`
+      "la-period-shortcut",
+      `${periodLabels[kind]} \xB7 ${period.key} \xB7 ${exists ? "\u6253\u5F00\u5DF2\u6709\u7B14\u8BB0" : "\u6309\u6A21\u677F\u521B\u5EFA"}`
     );
-    item.dataset.kind = kind;
-    el(item, "span", "la-period-state", exists ? "\u5DF2\u8BB0\u5F55" : "\u5F85\u8BB0\u5F55");
+    shortcut.dataset.kind = kind;
+    shortcut.title = exists ? "\u6253\u5F00\u5DF2\u6709\u7B14\u8BB0" : "\u6309\u6A21\u677F\u521B\u5EFA\u7B14\u8BB0";
+    shortcut.classList.toggle("has-note", exists);
   }
   const meta = el(calendar, "div", "la-calendar-meta");
   if (habits.length) habitFilters(meta, habits, filter);
@@ -1354,9 +1360,7 @@ function mountHome(container, model, actions) {
           perform(actions.openPeriod("weekly", b.dataset.anchor));
           break;
         case "period":
-          periodMenu.open = false;
-          periodTrigger.focus({ preventScroll: true });
-          perform(actions.openPeriod(b.dataset.kind, `${model.month}-01`));
+          perform(actions.openPeriod(b.dataset.kind, monthStart));
           break;
         case "current-week":
           perform(actions.openPeriod("weekly", model.today));
@@ -1388,16 +1392,7 @@ function mountHome(container, model, actions) {
   const change = () => {
     if (/^\d{4}-\d{2}$/.test(monthInput.value)) perform(actions.changeMonth(monthInput.value));
   };
-  const closeMenuOutside = (event) => {
-    if (periodMenu.open && !periodMenu.contains(event.target)) periodMenu.open = false;
-  };
   const keydown = (event) => {
-    if (event.key === "Escape" && periodMenu.open) {
-      periodMenu.open = false;
-      if (periodMenu.contains(event.target)) periodTrigger.focus({ preventScroll: true });
-      event.stopPropagation();
-      return;
-    }
     const target = event.target?.closest('[data-action="day"]');
     if (!target?.dataset.date) return;
     const offset = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[event.key];
@@ -1413,7 +1408,6 @@ function mountHome(container, model, actions) {
   };
   root.addEventListener("click", click);
   root.addEventListener("keydown", keydown);
-  root.ownerDocument.addEventListener("click", closeMenuOutside);
   monthInput.addEventListener("change", change);
   if (model.focusDate) {
     root.querySelector(`[data-action="day"][data-date="${model.focusDate}"]`)?.focus({ preventScroll: true });
@@ -1421,7 +1415,6 @@ function mountHome(container, model, actions) {
   return () => {
     root.removeEventListener("click", click);
     root.removeEventListener("keydown", keydown);
-    root.ownerDocument.removeEventListener("click", closeMenuOutside);
     monthInput.removeEventListener("change", change);
   };
 }
@@ -1524,7 +1517,7 @@ var HelpModal = class extends import_obsidian2.Modal {
     this.titleEl.setText("\u4EBA\u751F\u5B58\u6863 \xB7 \u4F7F\u7528\u8BF4\u660E");
     const content = this.contentEl;
     const steps = [
-      ["\u6253\u5F00\u5468\u671F\u7B14\u8BB0", "\u70B9\u51FB\u65E5\u671F\u67E5\u770B\u5F53\u5929\u8BE6\u60C5\uFF0C\u518D\u70B9\u300C\u65B0\u5EFA\u65E5\u8BB0\u300D\u6216\u300C\u6253\u5F00\u65E5\u8BB0\u300D\u3002\u5468\u7B14\u8BB0\u4ECE\u5468\u53F7\u6253\u5F00\uFF0C\u6708\u3001\u5B63\u3001\u5E74\u7B14\u8BB0\u5728\u300C\u5468\u671F\u7B14\u8BB0\u300D\u83DC\u5355\u91CC\u3002"],
+      ["\u6253\u5F00\u5468\u671F\u7B14\u8BB0", "\u70B9\u51FB\u65E5\u671F\u67E5\u770B\u5F53\u5929\u8BE6\u60C5\uFF0C\u518D\u70B9\u300C\u65B0\u5EFA\u65E5\u8BB0\u300D\u6216\u300C\u6253\u5F00\u65E5\u8BB0\u300D\u3002\u5468\u7B14\u8BB0\u4ECE\u5468\u53F7\u6253\u5F00\uFF0C\u6708\u3001\u5B63\u3001\u5E74\u7B14\u8BB0\u5728\u6708\u4EFD\u680F\u4E0B\u65B9\u6709\u5404\u81EA\u7684\u5165\u53E3\u3002"],
       ["\u4E60\u60EF\u6253\u5361", "\u4ECE\u8BB0\u5F55\u65E5\u5386\u7684\u300C\u7BA1\u7406\u4E60\u60EF\u300D\u6DFB\u52A0\u4E60\u60EF\u3002\u70B9\u51FB\u65E5\u5386\u4E2D\u7684\u65E5\u671F\uFF0C\u5728\u5F53\u5929\u8BE6\u60C5\u4E2D\u52FE\u9009\u3001\u8865\u6253\u5361\u6216\u64A4\u9500\u3002"],
       ["\u7559\u4F4F\u601D\u60F3", "\u70B9\u51FB\u300C\u65B0\u5EFA\u601D\u60F3\u6587\u7AE0\u300D\uFF0C\u8F93\u5165\u6807\u9898\u540E\u7EE7\u7EED\u5728 Obsidian \u4E2D\u5199\u4F5C\u3002"],
       ["\u5199\u4F5C\u63D0\u793A", "\u6253\u5F00\u5468\u671F\u7B14\u8BB0\u540E\uFF0C\u70B9\u51FB\u53F3\u4E0A\u89D2\u7684\u300C\u5199\u4F5C\u63D0\u793A\u300D\uFF0C\u5728\u4FA7\u680F\u67E5\u770B\u53EF\u9009\u7684\u8BB0\u5F55\u8981\u70B9\u3002"]

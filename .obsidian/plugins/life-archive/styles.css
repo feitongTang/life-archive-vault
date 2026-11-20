@@ -46,8 +46,8 @@
 .la-card-head p { margin: 0; font-size: 10px; color: var(--text-faint); line-height: 1.7; }
 .la-home .la-text-button { display: inline; height: auto; padding: 0; background: transparent; border: 0; box-shadow: none; border-radius: 2px; color: var(--la-accent); font-size: 11px; text-align: left; white-space: normal; }
 .la-home .la-text-button:hover { text-decoration: underline; background: transparent; }
-.la-calendar-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 12px; }
-.la-calendar-nav .la-inline { flex-wrap: nowrap; gap: 3px; }
+.la-calendar-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 8px; }
+.la-calendar-nav .la-inline { margin-inline-start: auto; flex-wrap: nowrap; gap: 3px; }
 .la-home .la-month-input { color: var(--text-normal); padding: 3px 0; min-width: 108px; max-width: 165px; width: auto; flex: 1; height: 30px; background: transparent; box-shadow: none; border: none; font-size: 14px; font-weight: 550; }
 .la-home .la-icon-button { width: 25px; min-width: 25px; height: 26px; padding: 0; font-size: 21px; line-height: 1; border: 0; box-shadow: none; background: transparent; color: var(--text-muted); }
 .la-home .la-small-button { padding: 3px 7px; height: 25px; border: 1px solid var(--background-modifier-border); border-radius: 4px; box-shadow: none; background: transparent; color: var(--text-muted); font-size: 10px; }
@@ -68,31 +68,17 @@
 .la-calendar-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 6px; }
 .la-calendar-legend { display: flex; gap: 5px; align-items: center; color: var(--text-faint); font-size: 9px; margin: 0 0 0 auto; }
 .la-legend-dot { display: inline-block; width: 4px; height: 4px; background: var(--la-accent); border-radius: 50%; }
-.la-period-menu { position: relative; margin-inline-start: auto; flex: none; }
-.la-period-menu summary {
-  display: flex; align-items: center; gap: 4px; min-height: 25px; padding: 3px 6px; list-style: none;
-  cursor: pointer; border: 1px solid var(--background-modifier-border); border-radius: 4px;
-  color: var(--text-muted); font-size: 10px;
+.la-period-shortcuts { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+.la-home .la-period-shortcut {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 27px; height: auto; padding: 4px 6px;
+  border: 1px solid var(--background-modifier-border); border-radius: 5px; box-shadow: none;
+  background: transparent; color: var(--text-normal); font-size: 10px;
 }
-.la-period-menu summary::-webkit-details-marker { display: none; }
-.la-period-menu summary::after {
-  content: ''; width: 5px; height: 5px; border: solid currentColor; border-width: 0 1px 1px 0;
-  transform: translateY(-1px) rotate(45deg);
+.la-home .la-period-shortcut:hover { background: var(--la-accent-soft); border-color: var(--la-accent); }
+.la-period-shortcut::before {
+  content: ''; flex: none; width: 5px; height: 5px; border: 1px solid var(--text-faint); border-radius: 50%;
 }
-.la-period-menu summary:hover, .la-period-menu[open] summary { background: var(--background-modifier-hover); }
-.la-period-menu summary:focus-visible { outline: 2px solid var(--la-accent); outline-offset: 3px; }
-.la-period-menu-items {
-  position: absolute; z-index: 2; inset-inline-end: 0; top: calc(100% + 5px); min-width: 144px;
-  padding: 4px; border: 1px solid var(--background-modifier-border); border-radius: 6px;
-  background: var(--background-primary); box-shadow: 0 5px 12px #0002;
-}
-.la-home .la-period-menu-item {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
-  min-height: 29px; padding: 5px 7px; margin: 0; background: transparent; box-shadow: none;
-  border: 0; border-radius: 3px; color: var(--text-normal); font-size: 11px;
-}
-.la-home .la-period-menu-item:hover { background: var(--la-accent-soft); }
-.la-period-state { color: var(--text-faint); font-size: 9px; }
+.la-period-shortcut.has-note::before { border-color: var(--la-accent); background: var(--la-accent); }
 .la-habit-filters { display: flex; flex-wrap: wrap; gap: 6px; }
 .la-home .la-habit-filter { min-height: 28px; height: auto; padding: 4px 8px; }
 .la-home .la-habit-filter[aria-pressed="true"] {
