@@ -13,5 +13,7 @@
     "thought": "模板/思想文章.md"
   },
   "openOnStartup": true,
-  "githubRemote": "git@github.com:feitongTang/life-archive-vault.git"
+  "githubRemote": "git@github.com:feitongTang/life-archive-vault.git",
+  "currentChapterPath": "人生主线/章节/职业发展与工作轨迹.md",
+  "lifeMapPath": "人生主线/人生地图.canvas"
 }

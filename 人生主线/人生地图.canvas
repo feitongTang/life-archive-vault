@@ -1,0 +1,58 @@
+{
+  "nodes": [
+    {
+      "id": "ed2df4668ea74227",
+      "type": "file",
+      "file": "人生主线/章节/职业发展与工作轨迹.md",
+      "x": -220,
+      "y": -260,
+      "width": 440,
+      "height": 290,
+      "color": "5"
+    },
+    {
+      "id": "77318ac73b704278",
+      "type": "file",
+      "file": "人生主线/自我修行.md",
+      "x": -484,
+      "y": 160,
+      "width": 424,
+      "height": 320
+    },
+    {
+      "id": "b564c5b816bc4d0a",
+      "type": "file",
+      "file": "人生主线/跳槽/跳槽.md",
+      "x": 60,
+      "y": 160,
+      "width": 424,
+      "height": 320
+    }
+  ],
+  "edges": [
+    {
+      "id": "d1b6d90520d94797",
+      "fromNode": "77318ac73b704278",
+      "fromSide": "top",
+      "toNode": "ed2df4668ea74227",
+      "toSide": "left",
+      "label": "贯穿章节"
+    },
+    {
+      "id": "b3f9f3b379164b59",
+      "fromNode": "ed2df4668ea74227",
+      "fromSide": "right",
+      "toNode": "b564c5b816bc4d0a",
+      "toSide": "top",
+      "label": "当前支线"
+    },
+    {
+      "id": "acf2d76e515943a4",
+      "fromNode": "77318ac73b704278",
+      "fromSide": "right",
+      "toNode": "b564c5b816bc4d0a",
+      "toSide": "left",
+      "label": "主线关联"
+    }
+  ]
+}
