@@ -1,9 +1,9 @@
 {
   "id": "life-archive",
   "name": "人生存档",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "minAppVersion": "1.8.7",
-  "description": "在日历中管理周期笔记，记录想法并浏览思想文章。",
+  "description": "从三条主线与动态地图回看经历，并管理周期笔记、习惯与月度复盘。",
   "author": "唐异",
   "isDesktopOnly": true
 }

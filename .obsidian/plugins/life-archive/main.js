@@ -1153,26 +1153,26 @@ var require_toJS = __commonJS({
   "node_modules/yaml/dist/nodes/toJS.js"(exports2) {
     "use strict";
     var identity = require_identity();
-    function toJS(value, arg, ctx) {
-      if (Array.isArray(value))
-        return value.map((v, i) => toJS(v, String(i), ctx));
-      if (value && typeof value.toJSON === "function") {
-        if (!ctx || !identity.hasAnchor(value))
-          return value.toJSON(arg, ctx);
+    function toJS(value2, arg, ctx) {
+      if (Array.isArray(value2))
+        return value2.map((v, i) => toJS(v, String(i), ctx));
+      if (value2 && typeof value2.toJSON === "function") {
+        if (!ctx || !identity.hasAnchor(value2))
+          return value2.toJSON(arg, ctx);
         const data = { aliasCount: 0, count: 1, res: void 0 };
-        ctx.anchors.set(value, data);
+        ctx.anchors.set(value2, data);
         ctx.onCreate = (res2) => {
           data.res = res2;
           delete ctx.onCreate;
         };
-        const res = value.toJSON(arg, ctx);
+        const res = value2.toJSON(arg, ctx);
         if (ctx.onCreate)
           ctx.onCreate(res);
         return res;
       }
-      if (typeof value === "bigint" && !ctx?.keep)
-        return Number(value);
-      return value;
+      if (typeof value2 === "bigint" && !ctx?.keep)
+        return Number(value2);
+      return value2;
     }
     exports2.toJS = toJS;
   }
@@ -1340,11 +1340,11 @@ var require_Scalar = __commonJS({
     var identity = require_identity();
     var Node = require_Node();
     var toJS = require_toJS();
-    var isScalarValue = (value) => !value || typeof value !== "function" && typeof value !== "object";
+    var isScalarValue = (value2) => !value2 || typeof value2 !== "function" && typeof value2 !== "object";
     var Scalar = class extends Node.NodeBase {
-      constructor(value) {
+      constructor(value2) {
         super(identity.SCALAR);
-        this.value = value;
+        this.value = value2;
       }
       toJSON(arg, ctx) {
         return ctx?.keep ? this.value : toJS.toJS(this.value, arg, ctx);
@@ -1371,7 +1371,7 @@ var require_createNode = __commonJS({
     var identity = require_identity();
     var Scalar = require_Scalar();
     var defaultTagPrefix = "tag:yaml.org,2002:";
-    function findTagObject(value, tagName, tags) {
+    function findTagObject(value2, tagName, tags) {
       if (tagName) {
         const match = tags.filter((t) => t.tag === tagName);
         const tagObj = match.find((t) => !t.format) ?? match[0];
@@ -1379,53 +1379,53 @@ var require_createNode = __commonJS({
           throw new Error(`Tag ${tagName} not found`);
         return tagObj;
       }
-      return tags.find((t) => t.identify?.(value) && !t.format);
+      return tags.find((t) => t.identify?.(value2) && !t.format);
     }
-    function createNode(value, tagName, ctx) {
-      if (identity.isDocument(value))
-        value = value.contents;
-      if (identity.isNode(value))
-        return value;
-      if (identity.isPair(value)) {
+    function createNode(value2, tagName, ctx) {
+      if (identity.isDocument(value2))
+        value2 = value2.contents;
+      if (identity.isNode(value2))
+        return value2;
+      if (identity.isPair(value2)) {
         const map = ctx.schema[identity.MAP].createNode?.(ctx.schema, null, ctx);
-        map.items.push(value);
+        map.items.push(value2);
         return map;
       }
-      if (value instanceof String || value instanceof Number || value instanceof Boolean || typeof BigInt !== "undefined" && value instanceof BigInt) {
-        value = value.valueOf();
+      if (value2 instanceof String || value2 instanceof Number || value2 instanceof Boolean || typeof BigInt !== "undefined" && value2 instanceof BigInt) {
+        value2 = value2.valueOf();
       }
       const { aliasDuplicateObjects, onAnchor, onTagObj, schema, sourceObjects } = ctx;
       let ref = void 0;
-      if (aliasDuplicateObjects && value && typeof value === "object") {
-        ref = sourceObjects.get(value);
+      if (aliasDuplicateObjects && value2 && typeof value2 === "object") {
+        ref = sourceObjects.get(value2);
         if (ref) {
-          ref.anchor ?? (ref.anchor = onAnchor(value));
+          ref.anchor ?? (ref.anchor = onAnchor(value2));
           return new Alias.Alias(ref.anchor);
         } else {
           ref = { anchor: null, node: null };
-          sourceObjects.set(value, ref);
+          sourceObjects.set(value2, ref);
         }
       }
       if (tagName?.startsWith("!!"))
         tagName = defaultTagPrefix + tagName.slice(2);
-      let tagObj = findTagObject(value, tagName, schema.tags);
+      let tagObj = findTagObject(value2, tagName, schema.tags);
       if (!tagObj) {
-        if (value && typeof value.toJSON === "function") {
-          value = value.toJSON();
+        if (value2 && typeof value2.toJSON === "function") {
+          value2 = value2.toJSON();
         }
-        if (!value || typeof value !== "object") {
-          const node2 = new Scalar.Scalar(value);
+        if (!value2 || typeof value2 !== "object") {
+          const node2 = new Scalar.Scalar(value2);
           if (ref)
             ref.node = node2;
           return node2;
         }
-        tagObj = value instanceof Map ? schema[identity.MAP] : Symbol.iterator in Object(value) ? schema[identity.SEQ] : schema[identity.MAP];
+        tagObj = value2 instanceof Map ? schema[identity.MAP] : Symbol.iterator in Object(value2) ? schema[identity.SEQ] : schema[identity.MAP];
       }
       if (onTagObj) {
         onTagObj(tagObj);
         delete ctx.onTagObj;
       }
-      const node = tagObj?.createNode ? tagObj.createNode(ctx.schema, value, ctx) : typeof tagObj?.nodeClass?.from === "function" ? tagObj.nodeClass.from(ctx.schema, value, ctx) : new Scalar.Scalar(value);
+      const node = tagObj?.createNode ? tagObj.createNode(ctx.schema, value2, ctx) : typeof tagObj?.nodeClass?.from === "function" ? tagObj.nodeClass.from(ctx.schema, value2, ctx) : new Scalar.Scalar(value2);
       if (tagName)
         node.tag = tagName;
       else if (!tagObj.default)
@@ -1445,8 +1445,8 @@ var require_Collection = __commonJS({
     var createNode = require_createNode();
     var identity = require_identity();
     var Node = require_Node();
-    function collectionFromPath(schema, path, value) {
-      let v = value;
+    function collectionFromPath(schema, path, value2) {
+      let v = value2;
       for (let i = path.length - 1; i >= 0; --i) {
         const k = path[i];
         if (typeof k === "number" && Number.isInteger(k) && k >= 0) {
@@ -1497,16 +1497,16 @@ var require_Collection = __commonJS({
        * be a Pair instance or a `{ key, value }` object, which may not have a key
        * that already exists in the map.
        */
-      addIn(path, value) {
+      addIn(path, value2) {
         if (isEmptyPath(path))
-          this.add(value);
+          this.add(value2);
         else {
           const [key, ...rest] = path;
           const node = this.get(key, true);
           if (identity.isCollection(node))
-            node.addIn(rest, value);
+            node.addIn(rest, value2);
           else if (node === void 0 && this.schema)
-            this.set(key, collectionFromPath(this.schema, rest, value));
+            this.set(key, collectionFromPath(this.schema, rest, value2));
           else
             throw new Error(`Expected YAML collection at ${key}. Remaining path: ${rest}`);
         }
@@ -1560,16 +1560,16 @@ var require_Collection = __commonJS({
        * Sets a value in this collection. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path, value) {
+      setIn(path, value2) {
         const [key, ...rest] = path;
         if (rest.length === 0) {
-          this.set(key, value);
+          this.set(key, value2);
         } else {
           const node = this.get(key, true);
           if (identity.isCollection(node))
-            node.setIn(rest, value);
+            node.setIn(rest, value2);
           else if (node === void 0 && this.schema)
-            this.set(key, collectionFromPath(this.schema, rest, value));
+            this.set(key, collectionFromPath(this.schema, rest, value2));
           else
             throw new Error(`Expected YAML collection at ${key}. Remaining path: ${rest}`);
         }
@@ -1764,13 +1764,13 @@ var require_stringifyString = __commonJS({
       }
       return true;
     }
-    function doubleQuotedString(value, ctx) {
-      const json = JSON.stringify(value);
+    function doubleQuotedString(value2, ctx) {
+      const json = JSON.stringify(value2);
       if (ctx.options.doubleQuotedAsJSON)
         return json;
       const { implicitKey } = ctx;
       const minMultiLineLength = ctx.options.doubleQuotedMinMultiLineLength;
-      const indent = ctx.indent || (containsDocumentMarker(value) ? "  " : "");
+      const indent = ctx.indent || (containsDocumentMarker(value2) ? "  " : "");
       let str = "";
       let start = 0;
       for (let i = 0, ch = json[i]; ch; ch = json[++i]) {
@@ -1844,22 +1844,22 @@ var require_stringifyString = __commonJS({
       str = start ? str + json.slice(start) : json;
       return implicitKey ? str : foldFlowLines.foldFlowLines(str, indent, foldFlowLines.FOLD_QUOTED, getFoldOptions(ctx, false));
     }
-    function singleQuotedString(value, ctx) {
-      if (ctx.options.singleQuote === false || ctx.implicitKey && value.includes("\n") || /[ \t]\n|\n[ \t]/.test(value))
-        return doubleQuotedString(value, ctx);
-      const indent = ctx.indent || (containsDocumentMarker(value) ? "  " : "");
-      const res = "'" + value.replace(/'/g, "''").replace(/\n+/g, `$&
+    function singleQuotedString(value2, ctx) {
+      if (ctx.options.singleQuote === false || ctx.implicitKey && value2.includes("\n") || /[ \t]\n|\n[ \t]/.test(value2))
+        return doubleQuotedString(value2, ctx);
+      const indent = ctx.indent || (containsDocumentMarker(value2) ? "  " : "");
+      const res = "'" + value2.replace(/'/g, "''").replace(/\n+/g, `$&
 ${indent}`) + "'";
       return ctx.implicitKey ? res : foldFlowLines.foldFlowLines(res, indent, foldFlowLines.FOLD_FLOW, getFoldOptions(ctx, false));
     }
-    function quotedString(value, ctx) {
+    function quotedString(value2, ctx) {
       const { singleQuote } = ctx.options;
       let qs;
       if (singleQuote === false)
         qs = doubleQuotedString;
       else {
-        const hasDouble = value.includes('"');
-        const hasSingle = value.includes("'");
+        const hasDouble = value2.includes('"');
+        const hasSingle = value2.includes("'");
         if (hasDouble && !hasSingle)
           qs = singleQuotedString;
         else if (hasSingle && !hasDouble)
@@ -1867,7 +1867,7 @@ ${indent}`) + "'";
         else
           qs = singleQuote ? singleQuotedString : doubleQuotedString;
       }
-      return qs(value, ctx);
+      return qs(value2, ctx);
     }
     var blockEndNewlines;
     try {
@@ -1875,27 +1875,27 @@ ${indent}`) + "'";
     } catch {
       blockEndNewlines = /\n+(?!\n|$)/g;
     }
-    function blockString({ comment, type, value }, ctx, onComment, onChompKeep) {
+    function blockString({ comment, type, value: value2 }, ctx, onComment, onChompKeep) {
       const { blockQuote, commentString, lineWidth } = ctx.options;
-      if (!blockQuote || /\n[\t ]+$/.test(value)) {
-        return quotedString(value, ctx);
+      if (!blockQuote || /\n[\t ]+$/.test(value2)) {
+        return quotedString(value2, ctx);
       }
-      const indent = ctx.indent || (ctx.forceBlockIndent || containsDocumentMarker(value) ? "  " : "");
-      const literal = blockQuote === "literal" ? true : blockQuote === "folded" || type === Scalar.Scalar.BLOCK_FOLDED ? false : type === Scalar.Scalar.BLOCK_LITERAL ? true : !lineLengthOverLimit(value, lineWidth, indent.length);
-      if (!value)
+      const indent = ctx.indent || (ctx.forceBlockIndent || containsDocumentMarker(value2) ? "  " : "");
+      const literal = blockQuote === "literal" ? true : blockQuote === "folded" || type === Scalar.Scalar.BLOCK_FOLDED ? false : type === Scalar.Scalar.BLOCK_LITERAL ? true : !lineLengthOverLimit(value2, lineWidth, indent.length);
+      if (!value2)
         return literal ? "|\n" : ">\n";
       let chomp;
       let endStart;
-      for (endStart = value.length; endStart > 0; --endStart) {
-        const ch = value[endStart - 1];
+      for (endStart = value2.length; endStart > 0; --endStart) {
+        const ch = value2[endStart - 1];
         if (ch !== "\n" && ch !== "	" && ch !== " ")
           break;
       }
-      let end = value.substring(endStart);
+      let end = value2.substring(endStart);
       const endNlPos = end.indexOf("\n");
       if (endNlPos === -1) {
         chomp = "-";
-      } else if (value === end || endNlPos !== end.length - 1) {
+      } else if (value2 === end || endNlPos !== end.length - 1) {
         chomp = "+";
         if (onChompKeep)
           onChompKeep();
@@ -1903,7 +1903,7 @@ ${indent}`) + "'";
         chomp = "";
       }
       if (end) {
-        value = value.slice(0, -end.length);
+        value2 = value2.slice(0, -end.length);
         if (end[end.length - 1] === "\n")
           end = end.slice(0, -1);
         end = end.replace(blockEndNewlines, `$&${indent}`);
@@ -1911,8 +1911,8 @@ ${indent}`) + "'";
       let startWithSpace = false;
       let startEnd;
       let startNlPos = -1;
-      for (startEnd = 0; startEnd < value.length; ++startEnd) {
-        const ch = value[startEnd];
+      for (startEnd = 0; startEnd < value2.length; ++startEnd) {
+        const ch = value2[startEnd];
         if (ch === " ")
           startWithSpace = true;
         else if (ch === "\n")
@@ -1920,9 +1920,9 @@ ${indent}`) + "'";
         else
           break;
       }
-      let start = value.substring(0, startNlPos < startEnd ? startNlPos + 1 : startEnd);
+      let start = value2.substring(0, startNlPos < startEnd ? startNlPos + 1 : startEnd);
       if (start) {
-        value = value.substring(start.length);
+        value2 = value2.substring(start.length);
         start = start.replace(/\n+/g, `$&${indent}`);
       }
       const indentSize = indent ? "2" : "1";
@@ -1933,7 +1933,7 @@ ${indent}`) + "'";
           onComment();
       }
       if (!literal) {
-        const foldedValue = value.replace(/\n+/g, "\n$&").replace(/(?:^|\n)([\t ].*)(?:([\n\t ]*)\n(?![\n\t ]))?/g, "$1$2").replace(/\n+/g, `$&${indent}`);
+        const foldedValue = value2.replace(/\n+/g, "\n$&").replace(/(?:^|\n)([\t ].*)(?:([\n\t ]*)\n(?![\n\t ]))?/g, "$1$2").replace(/\n+/g, `$&${indent}`);
         let literalFallback = false;
         const foldOptions = getFoldOptions(ctx, true);
         if (blockQuote !== "folded" && type !== Scalar.Scalar.BLOCK_FOLDED) {
@@ -1946,37 +1946,37 @@ ${indent}`) + "'";
           return `>${header}
 ${indent}${body}`;
       }
-      value = value.replace(/\n+/g, `$&${indent}`);
+      value2 = value2.replace(/\n+/g, `$&${indent}`);
       return `|${header}
-${indent}${start}${value}${end}`;
+${indent}${start}${value2}${end}`;
     }
     function plainString(item, ctx, onComment, onChompKeep) {
-      const { type, value } = item;
+      const { type, value: value2 } = item;
       const { actualString, implicitKey, indent, indentStep, inFlow } = ctx;
-      if (implicitKey && value.includes("\n") || inFlow && /[[\]{},]/.test(value)) {
-        return quotedString(value, ctx);
+      if (implicitKey && value2.includes("\n") || inFlow && /[[\]{},]/.test(value2)) {
+        return quotedString(value2, ctx);
       }
-      if (/^[\n\t ,[\]{}#&*!|>'"%@`]|^[?-]$|^[?-][ \t]|[\n:][ \t]|[ \t]\n|[\n\t ]#|[\n\t :]$/.test(value)) {
-        return implicitKey || inFlow || !value.includes("\n") ? quotedString(value, ctx) : blockString(item, ctx, onComment, onChompKeep);
+      if (/^[\n\t ,[\]{}#&*!|>'"%@`]|^[?-]$|^[?-][ \t]|[\n:][ \t]|[ \t]\n|[\n\t ]#|[\n\t :]$/.test(value2)) {
+        return implicitKey || inFlow || !value2.includes("\n") ? quotedString(value2, ctx) : blockString(item, ctx, onComment, onChompKeep);
       }
-      if (!implicitKey && !inFlow && type !== Scalar.Scalar.PLAIN && value.includes("\n")) {
+      if (!implicitKey && !inFlow && type !== Scalar.Scalar.PLAIN && value2.includes("\n")) {
         return blockString(item, ctx, onComment, onChompKeep);
       }
-      if (containsDocumentMarker(value)) {
+      if (containsDocumentMarker(value2)) {
         if (indent === "") {
           ctx.forceBlockIndent = true;
           return blockString(item, ctx, onComment, onChompKeep);
         } else if (implicitKey && indent === indentStep) {
-          return quotedString(value, ctx);
+          return quotedString(value2, ctx);
         }
       }
-      const str = value.replace(/\n+/g, `$&
+      const str = value2.replace(/\n+/g, `$&
 ${indent}`);
       if (actualString) {
         const test = (tag) => tag.default && tag.tag !== "tag:yaml.org,2002:str" && tag.test?.test(str);
         const { compat, tags } = ctx.doc.schema;
         if (tags.some(test) || compat?.some(test))
-          return quotedString(value, ctx);
+          return quotedString(value2, ctx);
       }
       return implicitKey ? str : foldFlowLines.foldFlowLines(str, indent, foldFlowLines.FOLD_FLOW, getFoldOptions(ctx, false));
     }
@@ -2148,7 +2148,7 @@ var require_stringifyPair = __commonJS({
     var Scalar = require_Scalar();
     var stringify = require_stringify();
     var stringifyComment = require_stringifyComment();
-    function stringifyPair({ key, value }, ctx, onComment, onChompKeep) {
+    function stringifyPair({ key, value: value2 }, ctx, onComment, onChompKeep) {
       const { allNullValues, doc, indent, indentStep, options: { commentString, indentSeq, simpleKeys } } = ctx;
       let keyComment = identity.isNode(key) && key.comment || null;
       if (simpleKeys) {
@@ -2160,7 +2160,7 @@ var require_stringifyPair = __commonJS({
           throw new Error(msg);
         }
       }
-      let explicitKey = !simpleKeys && (!key || keyComment && value == null && !ctx.inFlow || identity.isCollection(key) || (identity.isScalar(key) ? key.type === Scalar.Scalar.BLOCK_FOLDED || key.type === Scalar.Scalar.BLOCK_LITERAL : typeof key === "object"));
+      let explicitKey = !simpleKeys && (!key || keyComment && value2 == null && !ctx.inFlow || identity.isCollection(key) || (identity.isScalar(key) ? key.type === Scalar.Scalar.BLOCK_FOLDED || key.type === Scalar.Scalar.BLOCK_LITERAL : typeof key === "object"));
       ctx = Object.assign({}, ctx, {
         allNullValues: false,
         implicitKey: !explicitKey && (simpleKeys || !allNullValues),
@@ -2175,12 +2175,12 @@ var require_stringifyPair = __commonJS({
         explicitKey = true;
       }
       if (ctx.inFlow) {
-        if (allNullValues || value == null) {
+        if (allNullValues || value2 == null) {
           if (keyCommentDone && onComment)
             onComment();
           return str === "" ? "?" : explicitKey ? `? ${str}` : str;
         }
-      } else if (allNullValues && !simpleKeys || value == null && explicitKey) {
+      } else if (allNullValues && !simpleKeys || value2 == null && explicitKey) {
         str = `? ${str}`;
         if (keyComment && !keyCommentDone) {
           str += stringifyComment.lineComment(str, ctx.indent, commentString(keyComment));
@@ -2201,26 +2201,26 @@ ${indent}:`;
           str += stringifyComment.lineComment(str, ctx.indent, commentString(keyComment));
       }
       let vsb, vcb, valueComment;
-      if (identity.isNode(value)) {
-        vsb = !!value.spaceBefore;
-        vcb = value.commentBefore;
-        valueComment = value.comment;
+      if (identity.isNode(value2)) {
+        vsb = !!value2.spaceBefore;
+        vcb = value2.commentBefore;
+        valueComment = value2.comment;
       } else {
         vsb = false;
         vcb = null;
         valueComment = null;
-        if (value && typeof value === "object")
-          value = doc.createNode(value);
+        if (value2 && typeof value2 === "object")
+          value2 = doc.createNode(value2);
       }
       ctx.implicitKey = false;
-      if (!explicitKey && !keyComment && identity.isScalar(value))
+      if (!explicitKey && !keyComment && identity.isScalar(value2))
         ctx.indentAtStart = str.length + 1;
       chompKeep = false;
-      if (!indentSeq && indentStep.length >= 2 && !ctx.inFlow && !explicitKey && identity.isSeq(value) && !value.flow && !value.tag && !value.anchor) {
+      if (!indentSeq && indentStep.length >= 2 && !ctx.inFlow && !explicitKey && identity.isSeq(value2) && !value2.flow && !value2.tag && !value2.anchor) {
         ctx.indent = ctx.indent.substring(2);
       }
       let valueCommentDone = false;
-      const valueStr = stringify.stringify(value, ctx, () => valueCommentDone = true, () => chompKeep = true);
+      const valueStr = stringify.stringify(value2, ctx, () => valueCommentDone = true, () => chompKeep = true);
       let ws = " ";
       if (keyComment || vsb || vcb) {
         ws = vsb ? "\n" : "";
@@ -2236,11 +2236,11 @@ ${stringifyComment.indentComment(cs, ctx.indent)}`;
           ws += `
 ${ctx.indent}`;
         }
-      } else if (!explicitKey && identity.isCollection(value)) {
+      } else if (!explicitKey && identity.isCollection(value2)) {
         const vs0 = valueStr[0];
         const nl0 = valueStr.indexOf("\n");
         const hasNewline = nl0 !== -1;
-        const flow = ctx.inFlow ?? value.flow ?? value.items.length === 0;
+        const flow = ctx.inFlow ?? value2.flow ?? value2.items.length === 0;
         if (hasNewline || !flow) {
           let hasPropsLine = false;
           if (hasNewline && (vs0 === "&" || vs0 === "!")) {
@@ -2303,7 +2303,7 @@ var require_merge = __commonJS({
     var Scalar = require_Scalar();
     var MERGE_KEY = "<<";
     var merge = {
-      identify: (value) => value === MERGE_KEY || typeof value === "symbol" && value.description === MERGE_KEY,
+      identify: (value2) => value2 === MERGE_KEY || typeof value2 === "symbol" && value2.description === MERGE_KEY,
       default: "key",
       tag: "tag:yaml.org,2002:merge",
       test: /^<<$/,
@@ -2313,31 +2313,31 @@ var require_merge = __commonJS({
       stringify: () => MERGE_KEY
     };
     var isMergeKey = (ctx, key) => (merge.identify(key) || identity.isScalar(key) && (!key.type || key.type === Scalar.Scalar.PLAIN) && merge.identify(key.value)) && ctx?.doc.schema.tags.some((tag) => tag.tag === merge.tag && tag.default);
-    function addMergeToJSMap(ctx, map, value) {
-      value = ctx && identity.isAlias(value) ? value.resolve(ctx.doc) : value;
-      if (identity.isSeq(value))
-        for (const it of value.items)
+    function addMergeToJSMap(ctx, map, value2) {
+      value2 = ctx && identity.isAlias(value2) ? value2.resolve(ctx.doc) : value2;
+      if (identity.isSeq(value2))
+        for (const it of value2.items)
           mergeValue(ctx, map, it);
-      else if (Array.isArray(value))
-        for (const it of value)
+      else if (Array.isArray(value2))
+        for (const it of value2)
           mergeValue(ctx, map, it);
       else
-        mergeValue(ctx, map, value);
+        mergeValue(ctx, map, value2);
     }
-    function mergeValue(ctx, map, value) {
-      const source = ctx && identity.isAlias(value) ? value.resolve(ctx.doc) : value;
+    function mergeValue(ctx, map, value2) {
+      const source = ctx && identity.isAlias(value2) ? value2.resolve(ctx.doc) : value2;
       if (!identity.isMap(source))
         throw new Error("Merge sources must be maps or map aliases");
       const srcMap = source.toJSON(null, ctx, Map);
-      for (const [key, value2] of srcMap) {
+      for (const [key, value3] of srcMap) {
         if (map instanceof Map) {
           if (!map.has(key))
-            map.set(key, value2);
+            map.set(key, value3);
         } else if (map instanceof Set) {
           map.add(key);
         } else if (!Object.prototype.hasOwnProperty.call(map, key)) {
           Object.defineProperty(map, key, {
-            value: value2,
+            value: value3,
             writable: true,
             enumerable: true,
             configurable: true
@@ -2361,20 +2361,20 @@ var require_addPairToJSMap = __commonJS({
     var stringify = require_stringify();
     var identity = require_identity();
     var toJS = require_toJS();
-    function addPairToJSMap(ctx, map, { key, value }) {
+    function addPairToJSMap(ctx, map, { key, value: value2 }) {
       if (identity.isNode(key) && key.addToJSMap)
-        key.addToJSMap(ctx, map, value);
+        key.addToJSMap(ctx, map, value2);
       else if (merge.isMergeKey(ctx, key))
-        merge.addMergeToJSMap(ctx, map, value);
+        merge.addMergeToJSMap(ctx, map, value2);
       else {
         const jsKey = toJS.toJS(key, "", ctx);
         if (map instanceof Map) {
-          map.set(jsKey, toJS.toJS(value, jsKey, ctx));
+          map.set(jsKey, toJS.toJS(value2, jsKey, ctx));
         } else if (map instanceof Set) {
           map.add(jsKey);
         } else {
           const stringKey = stringifyKey(key, jsKey, ctx);
-          const jsValue = toJS.toJS(value, stringKey, ctx);
+          const jsValue = toJS.toJS(value2, stringKey, ctx);
           if (stringKey in map)
             Object.defineProperty(map, stringKey, {
               value: jsValue,
@@ -2424,24 +2424,24 @@ var require_Pair = __commonJS({
     var stringifyPair = require_stringifyPair();
     var addPairToJSMap = require_addPairToJSMap();
     var identity = require_identity();
-    function createPair(key, value, ctx) {
+    function createPair(key, value2, ctx) {
       const k = createNode.createNode(key, void 0, ctx);
-      const v = createNode.createNode(value, void 0, ctx);
+      const v = createNode.createNode(value2, void 0, ctx);
       return new Pair(k, v);
     }
     var Pair = class _Pair {
-      constructor(key, value = null) {
+      constructor(key, value2 = null) {
         Object.defineProperty(this, identity.NODE_TYPE, { value: identity.PAIR });
         this.key = key;
-        this.value = value;
+        this.value = value2;
       }
       clone(schema) {
-        let { key, value } = this;
+        let { key, value: value2 } = this;
         if (identity.isNode(key))
           key = key.clone(schema);
-        if (identity.isNode(value))
-          value = value.clone(schema);
-        return new _Pair(key, value);
+        if (identity.isNode(value2))
+          value2 = value2.clone(schema);
+        return new _Pair(key, value2);
       }
       toJSON(_, ctx) {
         const pair = ctx?.mapAsMap ? /* @__PURE__ */ new Map() : {};
@@ -2637,17 +2637,17 @@ var require_YAMLMap = __commonJS({
       static from(schema, obj, ctx) {
         const { keepUndefined, replacer } = ctx;
         const map = new this(schema);
-        const add = (key, value) => {
+        const add = (key, value2) => {
           if (typeof replacer === "function")
-            value = replacer.call(obj, key, value);
+            value2 = replacer.call(obj, key, value2);
           else if (Array.isArray(replacer) && !replacer.includes(key))
             return;
-          if (value !== void 0 || keepUndefined)
-            map.items.push(Pair.createPair(key, value, ctx));
+          if (value2 !== void 0 || keepUndefined)
+            map.items.push(Pair.createPair(key, value2, ctx));
         };
         if (obj instanceof Map) {
-          for (const [key, value] of obj)
-            add(key, value);
+          for (const [key, value2] of obj)
+            add(key, value2);
         } else if (obj && typeof obj === "object") {
           for (const key of Object.keys(obj))
             add(key, obj[key]);
@@ -2705,8 +2705,8 @@ var require_YAMLMap = __commonJS({
       has(key) {
         return !!findPair(this.items, key);
       }
-      set(key, value) {
-        this.add(new Pair.Pair(key, value), true);
+      set(key, value2) {
+        this.add(new Pair.Pair(key, value2), true);
       }
       /**
        * @param ctx - Conversion context, originally set in Document#toJS()
@@ -2784,8 +2784,8 @@ var require_YAMLSeq = __commonJS({
         super(identity.SEQ, schema);
         this.items = [];
       }
-      add(value) {
-        this.items.push(value);
+      add(value2) {
+        this.items.push(value2);
       }
       /**
        * Removes a value from the collection.
@@ -2826,15 +2826,15 @@ var require_YAMLSeq = __commonJS({
        * If `key` does not contain a representation of an integer, this will throw.
        * It may be wrapped in a `Scalar`.
        */
-      set(key, value) {
+      set(key, value2) {
         const idx = asItemIndex(key);
         if (typeof idx !== "number")
           throw new Error(`Expected a valid index, not ${key}.`);
         const prev = this.items[idx];
-        if (identity.isScalar(prev) && Scalar.isScalarValue(value))
-          prev.value = value;
+        if (identity.isScalar(prev) && Scalar.isScalarValue(value2))
+          prev.value = value2;
         else
-          this.items[idx] = value;
+          this.items[idx] = value2;
       }
       toJSON(_, ctx) {
         const seq = [];
@@ -2910,7 +2910,7 @@ var require_string = __commonJS({
     "use strict";
     var stringifyString = require_stringifyString();
     var string = {
-      identify: (value) => typeof value === "string",
+      identify: (value2) => typeof value2 === "string",
       default: true,
       tag: "tag:yaml.org,2002:str",
       resolve: (str) => str,
@@ -2929,7 +2929,7 @@ var require_null = __commonJS({
     "use strict";
     var Scalar = require_Scalar();
     var nullTag = {
-      identify: (value) => value == null,
+      identify: (value2) => value2 == null,
       createNode: () => new Scalar.Scalar(null),
       default: true,
       tag: "tag:yaml.org,2002:null",
@@ -2947,18 +2947,18 @@ var require_bool = __commonJS({
     "use strict";
     var Scalar = require_Scalar();
     var boolTag = {
-      identify: (value) => typeof value === "boolean",
+      identify: (value2) => typeof value2 === "boolean",
       default: true,
       tag: "tag:yaml.org,2002:bool",
       test: /^(?:[Tt]rue|TRUE|[Ff]alse|FALSE)$/,
       resolve: (str) => new Scalar.Scalar(str[0] === "t" || str[0] === "T"),
-      stringify({ source, value }, ctx) {
+      stringify({ source, value: value2 }, ctx) {
         if (source && boolTag.test.test(source)) {
           const sv = source[0] === "t" || source[0] === "T";
-          if (value === sv)
+          if (value2 === sv)
             return source;
         }
-        return value ? ctx.options.trueStr : ctx.options.falseStr;
+        return value2 ? ctx.options.trueStr : ctx.options.falseStr;
       }
     };
     exports2.boolTag = boolTag;
@@ -2969,13 +2969,13 @@ var require_bool = __commonJS({
 var require_stringifyNumber = __commonJS({
   "node_modules/yaml/dist/stringify/stringifyNumber.js"(exports2) {
     "use strict";
-    function stringifyNumber({ format, minFractionDigits, tag, value }) {
-      if (typeof value === "bigint")
-        return String(value);
-      const num = typeof value === "number" ? value : Number(value);
+    function stringifyNumber({ format, minFractionDigits, tag, value: value2 }) {
+      if (typeof value2 === "bigint")
+        return String(value2);
+      const num = typeof value2 === "number" ? value2 : Number(value2);
       if (!isFinite(num))
         return isNaN(num) ? ".nan" : num < 0 ? "-.inf" : ".inf";
-      let n = JSON.stringify(value);
+      let n = JSON.stringify(value2);
       if (!format && minFractionDigits && (!tag || tag === "tag:yaml.org,2002:float") && /^\d/.test(n)) {
         let i = n.indexOf(".");
         if (i < 0) {
@@ -2999,7 +2999,7 @@ var require_float = __commonJS({
     var Scalar = require_Scalar();
     var stringifyNumber = require_stringifyNumber();
     var floatNaN = {
-      identify: (value) => typeof value === "number",
+      identify: (value2) => typeof value2 === "number",
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^(?:[-+]?\.(?:inf|Inf|INF)|\.nan|\.NaN|\.NAN)$/,
@@ -3007,7 +3007,7 @@ var require_float = __commonJS({
       stringify: stringifyNumber.stringifyNumber
     };
     var floatExp = {
-      identify: (value) => typeof value === "number",
+      identify: (value2) => typeof value2 === "number",
       default: true,
       tag: "tag:yaml.org,2002:float",
       format: "EXP",
@@ -3019,7 +3019,7 @@ var require_float = __commonJS({
       }
     };
     var float = {
-      identify: (value) => typeof value === "number",
+      identify: (value2) => typeof value2 === "number",
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^[-+]?(?:\.[0-9]+|[0-9]+\.[0-9]*)$/,
@@ -3043,16 +3043,16 @@ var require_int = __commonJS({
   "node_modules/yaml/dist/schema/core/int.js"(exports2) {
     "use strict";
     var stringifyNumber = require_stringifyNumber();
-    var intIdentify = (value) => typeof value === "bigint" || Number.isInteger(value);
+    var intIdentify = (value2) => typeof value2 === "bigint" || Number.isInteger(value2);
     var intResolve = (str, offset, radix, { intAsBigInt }) => intAsBigInt ? BigInt(str) : parseInt(str.substring(offset), radix);
     function intStringify(node, radix, prefix) {
-      const { value } = node;
-      if (intIdentify(value) && value >= 0)
-        return prefix + value.toString(radix);
+      const { value: value2 } = node;
+      if (intIdentify(value2) && value2 >= 0)
+        return prefix + value2.toString(radix);
       return stringifyNumber.stringifyNumber(node);
     }
     var intOct = {
-      identify: (value) => intIdentify(value) && value >= 0,
+      identify: (value2) => intIdentify(value2) && value2 >= 0,
       default: true,
       tag: "tag:yaml.org,2002:int",
       format: "OCT",
@@ -3069,7 +3069,7 @@ var require_int = __commonJS({
       stringify: stringifyNumber.stringifyNumber
     };
     var intHex = {
-      identify: (value) => intIdentify(value) && value >= 0,
+      identify: (value2) => intIdentify(value2) && value2 >= 0,
       default: true,
       tag: "tag:yaml.org,2002:int",
       format: "HEX",
@@ -3118,20 +3118,20 @@ var require_schema2 = __commonJS({
     var Scalar = require_Scalar();
     var map = require_map();
     var seq = require_seq();
-    function intIdentify(value) {
-      return typeof value === "bigint" || Number.isInteger(value);
+    function intIdentify(value2) {
+      return typeof value2 === "bigint" || Number.isInteger(value2);
     }
-    var stringifyJSON = ({ value }) => JSON.stringify(value);
+    var stringifyJSON = ({ value: value2 }) => JSON.stringify(value2);
     var jsonScalars = [
       {
-        identify: (value) => typeof value === "string",
+        identify: (value2) => typeof value2 === "string",
         default: true,
         tag: "tag:yaml.org,2002:str",
         resolve: (str) => str,
         stringify: stringifyJSON
       },
       {
-        identify: (value) => value == null,
+        identify: (value2) => value2 == null,
         createNode: () => new Scalar.Scalar(null),
         default: true,
         tag: "tag:yaml.org,2002:null",
@@ -3140,7 +3140,7 @@ var require_schema2 = __commonJS({
         stringify: stringifyJSON
       },
       {
-        identify: (value) => typeof value === "boolean",
+        identify: (value2) => typeof value2 === "boolean",
         default: true,
         tag: "tag:yaml.org,2002:bool",
         test: /^true$|^false$/,
@@ -3153,10 +3153,10 @@ var require_schema2 = __commonJS({
         tag: "tag:yaml.org,2002:int",
         test: /^-?(?:0|[1-9][0-9]*)$/,
         resolve: (str, _onError, { intAsBigInt }) => intAsBigInt ? BigInt(str) : parseInt(str, 10),
-        stringify: ({ value }) => intIdentify(value) ? value.toString() : JSON.stringify(value)
+        stringify: ({ value: value2 }) => intIdentify(value2) ? value2.toString() : JSON.stringify(value2)
       },
       {
-        identify: (value) => typeof value === "number",
+        identify: (value2) => typeof value2 === "number",
         default: true,
         tag: "tag:yaml.org,2002:float",
         test: /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]*)?(?:[eE][-+]?[0-9]+)?$/,
@@ -3186,7 +3186,7 @@ var require_binary = __commonJS({
     var Scalar = require_Scalar();
     var stringifyString = require_stringifyString();
     var binary = {
-      identify: (value) => value instanceof Uint8Array,
+      identify: (value2) => value2 instanceof Uint8Array,
       // Buffer inherits from Uint8Array
       default: false,
       tag: "tag:yaml.org,2002:binary",
@@ -3212,10 +3212,10 @@ var require_binary = __commonJS({
           return src;
         }
       },
-      stringify({ comment, type, value }, ctx, onComment, onChompKeep) {
-        if (!value)
+      stringify({ comment, type, value: value2 }, ctx, onComment, onChompKeep) {
+        if (!value2)
           return "";
-        const buf = value;
+        const buf = value2;
         let str;
         if (typeof node_buffer.Buffer === "function") {
           str = buf instanceof node_buffer.Buffer ? buf.toString("base64") : node_buffer.Buffer.from(buf.buffer).toString("base64");
@@ -3287,25 +3287,25 @@ ${cn.comment}` : item.comment;
         for (let it of iterable) {
           if (typeof replacer === "function")
             it = replacer.call(iterable, String(i++), it);
-          let key, value;
+          let key, value2;
           if (Array.isArray(it)) {
             if (it.length === 2) {
               key = it[0];
-              value = it[1];
+              value2 = it[1];
             } else
               throw new TypeError(`Expected [key, value] tuple: ${it}`);
           } else if (it && it instanceof Object) {
             const keys = Object.keys(it);
             if (keys.length === 1) {
               key = keys[0];
-              value = it[key];
+              value2 = it[key];
             } else {
               throw new TypeError(`Expected tuple with one key, not ${keys.length} keys`);
             }
           } else {
             key = it;
           }
-          pairs2.items.push(Pair.createPair(key, value, ctx));
+          pairs2.items.push(Pair.createPair(key, value2, ctx));
         }
       return pairs2;
     }
@@ -3352,16 +3352,16 @@ var require_omap = __commonJS({
         if (ctx?.onCreate)
           ctx.onCreate(map);
         for (const pair of this.items) {
-          let key, value;
+          let key, value2;
           if (identity.isPair(pair)) {
             key = toJS.toJS(pair.key, "", ctx);
-            value = toJS.toJS(pair.value, key, ctx);
+            value2 = toJS.toJS(pair.value, key, ctx);
           } else {
             key = toJS.toJS(pair, "", ctx);
           }
           if (map.has(key))
             throw new Error("Ordered maps must not include duplicate keys");
-          map.set(key, value);
+          map.set(key, value2);
         }
         return map;
       }
@@ -3375,7 +3375,7 @@ var require_omap = __commonJS({
     YAMLOMap.tag = "tag:yaml.org,2002:omap";
     var omap = {
       collection: "seq",
-      identify: (value) => value instanceof Map,
+      identify: (value2) => value2 instanceof Map,
       nodeClass: YAMLOMap,
       default: false,
       tag: "tag:yaml.org,2002:omap",
@@ -3405,14 +3405,14 @@ var require_bool2 = __commonJS({
   "node_modules/yaml/dist/schema/yaml-1.1/bool.js"(exports2) {
     "use strict";
     var Scalar = require_Scalar();
-    function boolStringify({ value, source }, ctx) {
-      const boolObj = value ? trueTag : falseTag;
+    function boolStringify({ value: value2, source }, ctx) {
+      const boolObj = value2 ? trueTag : falseTag;
       if (source && boolObj.test.test(source))
         return source;
-      return value ? ctx.options.trueStr : ctx.options.falseStr;
+      return value2 ? ctx.options.trueStr : ctx.options.falseStr;
     }
     var trueTag = {
-      identify: (value) => value === true,
+      identify: (value2) => value2 === true,
       default: true,
       tag: "tag:yaml.org,2002:bool",
       test: /^(?:Y|y|[Yy]es|YES|[Tt]rue|TRUE|[Oo]n|ON)$/,
@@ -3420,7 +3420,7 @@ var require_bool2 = __commonJS({
       stringify: boolStringify
     };
     var falseTag = {
-      identify: (value) => value === false,
+      identify: (value2) => value2 === false,
       default: true,
       tag: "tag:yaml.org,2002:bool",
       test: /^(?:N|n|[Nn]o|NO|[Ff]alse|FALSE|[Oo]ff|OFF)$/,
@@ -3439,7 +3439,7 @@ var require_float2 = __commonJS({
     var Scalar = require_Scalar();
     var stringifyNumber = require_stringifyNumber();
     var floatNaN = {
-      identify: (value) => typeof value === "number",
+      identify: (value2) => typeof value2 === "number",
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^(?:[-+]?\.(?:inf|Inf|INF)|\.nan|\.NaN|\.NAN)$/,
@@ -3447,7 +3447,7 @@ var require_float2 = __commonJS({
       stringify: stringifyNumber.stringifyNumber
     };
     var floatExp = {
-      identify: (value) => typeof value === "number",
+      identify: (value2) => typeof value2 === "number",
       default: true,
       tag: "tag:yaml.org,2002:float",
       format: "EXP",
@@ -3459,7 +3459,7 @@ var require_float2 = __commonJS({
       }
     };
     var float = {
-      identify: (value) => typeof value === "number",
+      identify: (value2) => typeof value2 === "number",
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^[-+]?(?:[0-9][0-9_]*)?\.[0-9_]*$/,
@@ -3486,7 +3486,7 @@ var require_int2 = __commonJS({
   "node_modules/yaml/dist/schema/yaml-1.1/int.js"(exports2) {
     "use strict";
     var stringifyNumber = require_stringifyNumber();
-    var intIdentify = (value) => typeof value === "bigint" || Number.isInteger(value);
+    var intIdentify = (value2) => typeof value2 === "bigint" || Number.isInteger(value2);
     function intResolve(str, offset, radix, { intAsBigInt }) {
       const sign = str[0];
       if (sign === "-" || sign === "+")
@@ -3511,10 +3511,10 @@ var require_int2 = __commonJS({
       return sign === "-" ? -1 * n : n;
     }
     function intStringify(node, radix, prefix) {
-      const { value } = node;
-      if (intIdentify(value)) {
-        const str = value.toString(radix);
-        return value < 0 ? "-" + prefix + str.substr(1) : prefix + str;
+      const { value: value2 } = node;
+      if (intIdentify(value2)) {
+        const str = value2.toString(radix);
+        return value2 < 0 ? "-" + prefix + str.substr(1) : prefix + str;
       }
       return stringifyNumber.stringifyNumber(node);
     }
@@ -3592,13 +3592,13 @@ var require_set = __commonJS({
         const pair = YAMLMap.findPair(this.items, key);
         return !keepPair && identity.isPair(pair) ? identity.isScalar(pair.key) ? pair.key.value : pair.key : pair;
       }
-      set(key, value) {
-        if (typeof value !== "boolean")
-          throw new Error(`Expected boolean value for set(key, value) in a YAML set, not ${typeof value}`);
+      set(key, value2) {
+        if (typeof value2 !== "boolean")
+          throw new Error(`Expected boolean value for set(key, value) in a YAML set, not ${typeof value2}`);
         const prev = YAMLMap.findPair(this.items, key);
-        if (prev && !value) {
+        if (prev && !value2) {
           this.items.splice(this.items.indexOf(prev), 1);
-        } else if (!prev && value) {
+        } else if (!prev && value2) {
           this.items.push(new Pair.Pair(key));
         }
       }
@@ -3617,10 +3617,10 @@ var require_set = __commonJS({
         const { replacer } = ctx;
         const set2 = new this(schema);
         if (iterable && Symbol.iterator in Object(iterable))
-          for (let value of iterable) {
+          for (let value2 of iterable) {
             if (typeof replacer === "function")
-              value = replacer.call(iterable, value, value);
-            set2.items.push(Pair.createPair(value, null, ctx));
+              value2 = replacer.call(iterable, value2, value2);
+            set2.items.push(Pair.createPair(value2, null, ctx));
           }
         return set2;
       }
@@ -3628,7 +3628,7 @@ var require_set = __commonJS({
     YAMLSet.tag = "tag:yaml.org,2002:set";
     var set = {
       collection: "map",
-      identify: (value) => value instanceof Set,
+      identify: (value2) => value2 instanceof Set,
       nodeClass: YAMLSet,
       default: false,
       tag: "tag:yaml.org,2002:set",
@@ -3662,33 +3662,33 @@ var require_timestamp = __commonJS({
       return sign === "-" ? num(-1) * res : res;
     }
     function stringifySexagesimal(node) {
-      let { value } = node;
+      let { value: value2 } = node;
       let num = (n) => n;
-      if (typeof value === "bigint")
+      if (typeof value2 === "bigint")
         num = (n) => BigInt(n);
-      else if (isNaN(value) || !isFinite(value))
+      else if (isNaN(value2) || !isFinite(value2))
         return stringifyNumber.stringifyNumber(node);
       let sign = "";
-      if (value < 0) {
+      if (value2 < 0) {
         sign = "-";
-        value *= num(-1);
+        value2 *= num(-1);
       }
       const _60 = num(60);
-      const parts = [value % _60];
-      if (value < 60) {
+      const parts = [value2 % _60];
+      if (value2 < 60) {
         parts.unshift(0);
       } else {
-        value = (value - parts[0]) / _60;
-        parts.unshift(value % _60);
-        if (value >= 60) {
-          value = (value - parts[0]) / _60;
-          parts.unshift(value);
+        value2 = (value2 - parts[0]) / _60;
+        parts.unshift(value2 % _60);
+        if (value2 >= 60) {
+          value2 = (value2 - parts[0]) / _60;
+          parts.unshift(value2);
         }
       }
       return sign + parts.map((n) => String(n).padStart(2, "0")).join(":").replace(/000000\d*$/, "");
     }
     var intTime = {
-      identify: (value) => typeof value === "bigint" || Number.isInteger(value),
+      identify: (value2) => typeof value2 === "bigint" || Number.isInteger(value2),
       default: true,
       tag: "tag:yaml.org,2002:int",
       format: "TIME",
@@ -3697,7 +3697,7 @@ var require_timestamp = __commonJS({
       stringify: stringifySexagesimal
     };
     var floatTime = {
-      identify: (value) => typeof value === "number",
+      identify: (value2) => typeof value2 === "number",
       default: true,
       tag: "tag:yaml.org,2002:float",
       format: "TIME",
@@ -3706,7 +3706,7 @@ var require_timestamp = __commonJS({
       stringify: stringifySexagesimal
     };
     var timestamp = {
-      identify: (value) => value instanceof Date,
+      identify: (value2) => value2 instanceof Date,
       default: true,
       tag: "tag:yaml.org,2002:timestamp",
       // If the time zone is omitted, the timestamp is assumed to be specified in UTC. The time part
@@ -3729,7 +3729,7 @@ var require_timestamp = __commonJS({
         }
         return new Date(date);
       },
-      stringify: ({ value }) => value?.toISOString().replace(/(T00:00:00)?\.000Z$/, "") ?? ""
+      stringify: ({ value: value2 }) => value2?.toISOString().replace(/(T00:00:00)?\.000Z$/, "") ?? ""
     };
     exports2.floatTime = floatTime;
     exports2.intTime = intTime;
@@ -4003,7 +4003,7 @@ var require_Document = __commonJS({
     var createNode = require_createNode();
     var directives = require_directives();
     var Document = class _Document {
-      constructor(value, replacer, options) {
+      constructor(value2, replacer, options) {
         this.commentBefore = null;
         this.comment = null;
         this.errors = [];
@@ -4035,7 +4035,7 @@ var require_Document = __commonJS({
         } else
           this.directives = new directives.Directives({ version });
         this.setSchema(version, options);
-        this.contents = value === void 0 ? null : this.createNode(value, _replacer, options);
+        this.contents = value2 === void 0 ? null : this.createNode(value2, _replacer, options);
       }
       /**
        * Create a deep copy of this Document and its contents.
@@ -4060,14 +4060,14 @@ var require_Document = __commonJS({
         return copy;
       }
       /** Adds a value to the document. */
-      add(value) {
+      add(value2) {
         if (assertCollection(this.contents))
-          this.contents.add(value);
+          this.contents.add(value2);
       }
       /** Adds a value to the document. */
-      addIn(path, value) {
+      addIn(path, value2) {
         if (assertCollection(this.contents))
-          this.contents.addIn(path, value);
+          this.contents.addIn(path, value2);
       }
       /**
        * Create a new `Alias` node, ensuring that the target `node` has the required anchor.
@@ -4086,10 +4086,10 @@ var require_Document = __commonJS({
         }
         return new Alias.Alias(node.anchor);
       }
-      createNode(value, replacer, options) {
+      createNode(value2, replacer, options) {
         let _replacer = void 0;
         if (typeof replacer === "function") {
-          value = replacer.call({ "": value }, "", value);
+          value2 = replacer.call({ "": value2 }, "", value2);
           _replacer = replacer;
         } else if (Array.isArray(replacer)) {
           const keyToStr = (v) => typeof v === "number" || v instanceof String || v instanceof Number;
@@ -4116,7 +4116,7 @@ var require_Document = __commonJS({
           schema: this.schema,
           sourceObjects
         };
-        const node = createNode.createNode(value, tag, ctx);
+        const node = createNode.createNode(value2, tag, ctx);
         if (flow && identity.isCollection(node))
           node.flow = true;
         setAnchors();
@@ -4126,9 +4126,9 @@ var require_Document = __commonJS({
        * Convert a key and a value into a `Pair` using the current schema,
        * recursively wrapping all values as `Scalar` or `Collection` nodes.
        */
-      createPair(key, value, options = {}) {
+      createPair(key, value2, options = {}) {
         const k = this.createNode(key, null, options);
-        const v = this.createNode(value, null, options);
+        const v = this.createNode(value2, null, options);
         return new Pair.Pair(k, v);
       }
       /**
@@ -4187,24 +4187,24 @@ var require_Document = __commonJS({
        * Sets a value in this document. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      set(key, value) {
+      set(key, value2) {
         if (this.contents == null) {
-          this.contents = Collection.collectionFromPath(this.schema, [key], value);
+          this.contents = Collection.collectionFromPath(this.schema, [key], value2);
         } else if (assertCollection(this.contents)) {
-          this.contents.set(key, value);
+          this.contents.set(key, value2);
         }
       }
       /**
        * Sets a value in this document. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path, value) {
+      setIn(path, value2) {
         if (Collection.isEmptyPath(path)) {
-          this.contents = value;
+          this.contents = value2;
         } else if (this.contents == null) {
-          this.contents = Collection.collectionFromPath(this.schema, Array.from(path), value);
+          this.contents = Collection.collectionFromPath(this.schema, Array.from(path), value2);
         } else if (assertCollection(this.contents)) {
-          this.contents.setIn(path, value);
+          this.contents.setIn(path, value2);
         }
       }
       /**
@@ -4590,7 +4590,7 @@ var require_resolve_block_map = __commonJS({
       let offset = bm.offset;
       let commentEnd = null;
       for (const collItem of bm.items) {
-        const { start, key, sep, value } = collItem;
+        const { start, key, sep, value: value2 } = collItem;
         const keyProps = resolveProps.resolveProps(start, {
           indicator: "explicit-key-ind",
           next: key ?? sep?.[0],
@@ -4633,7 +4633,7 @@ var require_resolve_block_map = __commonJS({
           onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
         const valueProps = resolveProps.resolveProps(sep ?? [], {
           indicator: "map-value-ind",
-          next: value,
+          next: value2,
           offset: keyNode.range[2],
           onError,
           parentIndent: bm.indent,
@@ -4642,14 +4642,14 @@ var require_resolve_block_map = __commonJS({
         offset = valueProps.end;
         if (valueProps.found) {
           if (implicitKey) {
-            if (value?.type === "block-map" && !valueProps.hasNewline)
+            if (value2?.type === "block-map" && !valueProps.hasNewline)
               onError(offset, "BLOCK_AS_IMPLICIT_KEY", "Nested mappings are not allowed in compact mappings");
             if (ctx.options.strict && keyProps.start < valueProps.found.offset - 1024)
               onError(keyNode.range, "KEY_OVER_1024_CHARS", "The : indicator must be at most 1024 chars after the start of an implicit block mapping key");
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep, null, valueProps, onError);
+          const valueNode = value2 ? composeNode(ctx, value2, valueProps, onError) : composeEmptyNode(ctx, offset, sep, null, valueProps, onError);
           if (ctx.schema.compat)
-            utilFlowIndentCheck.flowIndentCheck(bm.indent, value, onError);
+            utilFlowIndentCheck.flowIndentCheck(bm.indent, value2, onError);
           offset = valueNode.range[2];
           const pair = new Pair.Pair(keyNode, valueNode);
           if (ctx.options.keepSourceTokens)
@@ -4695,18 +4695,18 @@ var require_resolve_block_seq = __commonJS({
         ctx.atKey = false;
       let offset = bs.offset;
       let commentEnd = null;
-      for (const { start, value } of bs.items) {
+      for (const { start, value: value2 } of bs.items) {
         const props = resolveProps.resolveProps(start, {
           indicator: "seq-item-ind",
-          next: value,
+          next: value2,
           offset,
           onError,
           parentIndent: bs.indent,
           startOnNewline: true
         });
         if (!props.found) {
-          if (props.anchor || props.tag || value) {
-            if (value && value.type === "block-seq")
+          if (props.anchor || props.tag || value2) {
+            if (value2 && value2.type === "block-seq")
               onError(props.end, "BAD_INDENT", "All sequence items must start at the same column");
             else
               onError(offset, "MISSING_CHAR", "Sequence item without - indicator");
@@ -4717,9 +4717,9 @@ var require_resolve_block_seq = __commonJS({
             continue;
           }
         }
-        const node = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, start, null, props, onError);
+        const node = value2 ? composeNode(ctx, value2, props, onError) : composeEmptyNode(ctx, props.end, start, null, props, onError);
         if (ctx.schema.compat)
-          utilFlowIndentCheck.flowIndentCheck(bs.indent, value, onError);
+          utilFlowIndentCheck.flowIndentCheck(bs.indent, value2, onError);
         offset = node.range[2];
         seq.items.push(node);
       }
@@ -4801,7 +4801,7 @@ var require_resolve_flow_collection = __commonJS({
       let offset = fc.offset + fc.start.source.length;
       for (let i = 0; i < fc.items.length; ++i) {
         const collItem = fc.items[i];
-        const { start, key, sep, value } = collItem;
+        const { start, key, sep, value: value2 } = collItem;
         const props = resolveProps.resolveProps(start, {
           flow: fcName,
           indicator: "explicit-key-ind",
@@ -4812,7 +4812,7 @@ var require_resolve_flow_collection = __commonJS({
           startOnNewline: false
         });
         if (!props.found) {
-          if (!props.anchor && !props.tag && !sep && !value) {
+          if (!props.anchor && !props.tag && !sep && !value2) {
             if (i === 0 && props.comma)
               onError(props.comma, "UNEXPECTED_TOKEN", `Unexpected , in ${fcName}`);
             else if (i < fc.items.length - 1)
@@ -4867,10 +4867,10 @@ var require_resolve_flow_collection = __commonJS({
           }
         }
         if (!isMap && !sep && !props.found) {
-          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep, null, props, onError);
+          const valueNode = value2 ? composeNode(ctx, value2, props, onError) : composeEmptyNode(ctx, props.end, sep, null, props, onError);
           coll.items.push(valueNode);
           offset = valueNode.range[2];
-          if (isBlock(value))
+          if (isBlock(value2))
             onError(valueNode.range, "BLOCK_IN_FLOW", blockMsg);
         } else {
           ctx.atKey = true;
@@ -4882,7 +4882,7 @@ var require_resolve_flow_collection = __commonJS({
           const valueProps = resolveProps.resolveProps(sep ?? [], {
             flow: fcName,
             indicator: "map-value-ind",
-            next: value,
+            next: value2,
             offset: keyNode.range[2],
             onError,
             parentIndent: fc.indent,
@@ -4902,15 +4902,15 @@ var require_resolve_flow_collection = __commonJS({
               if (props.start < valueProps.found.offset - 1024)
                 onError(valueProps.found, "KEY_OVER_1024_CHARS", "The : indicator must be at most 1024 chars after the start of an implicit flow sequence key");
             }
-          } else if (value) {
-            if ("source" in value && value.source && value.source[0] === ":")
-              onError(value, "MISSING_CHAR", `Missing space after : in ${fcName}`);
+          } else if (value2) {
+            if ("source" in value2 && value2.source && value2.source[0] === ":")
+              onError(value2, "MISSING_CHAR", `Missing space after : in ${fcName}`);
             else
               onError(valueProps.start, "MISSING_CHAR", `Missing , or : between ${fcName} items`);
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep, null, valueProps, onError) : null;
+          const valueNode = value2 ? composeNode(ctx, value2, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep, null, valueProps, onError) : null;
           if (valueNode) {
-            if (isBlock(value))
+            if (isBlock(value2))
               onError(valueNode.range, "BLOCK_IN_FLOW", blockMsg);
           } else if (valueProps.comment) {
             if (keyNode.comment)
@@ -5053,11 +5053,11 @@ var require_resolve_block_scalar = __commonJS({
           break;
       }
       if (chompStart === 0) {
-        const value2 = header.chomp === "+" && lines.length > 0 ? "\n".repeat(Math.max(1, lines.length - 1)) : "";
+        const value3 = header.chomp === "+" && lines.length > 0 ? "\n".repeat(Math.max(1, lines.length - 1)) : "";
         let end2 = start + header.length;
         if (scalar.source)
           end2 += scalar.source.length;
-        return { value: value2, type, comment: header.comment, range: [start, end2, end2] };
+        return { value: value3, type, comment: header.comment, range: [start, end2, end2] };
       }
       let trimIndent = scalar.indent + header.indent;
       let offset = scalar.offset + header.length;
@@ -5087,11 +5087,11 @@ var require_resolve_block_scalar = __commonJS({
         if (lines[i][0].length > trimIndent)
           chompStart = i + 1;
       }
-      let value = "";
+      let value2 = "";
       let sep = "";
       let prevMoreIndented = false;
       for (let i = 0; i < contentStart; ++i)
-        value += lines[i][0].slice(trimIndent) + "\n";
+        value2 += lines[i][0].slice(trimIndent) + "\n";
       for (let i = contentStart; i < chompStart; ++i) {
         let [indent, content] = lines[i];
         offset += indent.length + content.length + 1;
@@ -5105,23 +5105,23 @@ var require_resolve_block_scalar = __commonJS({
           indent = "";
         }
         if (type === Scalar.Scalar.BLOCK_LITERAL) {
-          value += sep + indent.slice(trimIndent) + content;
+          value2 += sep + indent.slice(trimIndent) + content;
           sep = "\n";
         } else if (indent.length > trimIndent || content[0] === "	") {
           if (sep === " ")
             sep = "\n";
           else if (!prevMoreIndented && sep === "\n")
             sep = "\n\n";
-          value += sep + indent.slice(trimIndent) + content;
+          value2 += sep + indent.slice(trimIndent) + content;
           sep = "\n";
           prevMoreIndented = true;
         } else if (content === "") {
           if (sep === "\n")
-            value += "\n";
+            value2 += "\n";
           else
             sep = "\n";
         } else {
-          value += sep + content;
+          value2 += sep + content;
           sep = " ";
           prevMoreIndented = false;
         }
@@ -5131,15 +5131,15 @@ var require_resolve_block_scalar = __commonJS({
           break;
         case "+":
           for (let i = chompStart; i < lines.length; ++i)
-            value += "\n" + lines[i][0].slice(trimIndent);
-          if (value[value.length - 1] !== "\n")
-            value += "\n";
+            value2 += "\n" + lines[i][0].slice(trimIndent);
+          if (value2[value2.length - 1] !== "\n")
+            value2 += "\n";
           break;
         default:
-          value += "\n";
+          value2 += "\n";
       }
       const end = start + header.length + scalar.source.length;
-      return { value, type, comment: header.comment, range: [start, end, end] };
+      return { value: value2, type, comment: header.comment, range: [start, end, end] };
     }
     function parseBlockScalarHeader({ offset, props }, strict, onError) {
       if (props[0].type !== "block-scalar-header") {
@@ -5224,20 +5224,20 @@ var require_resolve_flow_scalar = __commonJS({
     function resolveFlowScalar(scalar, strict, onError) {
       const { offset, type, source, end } = scalar;
       let _type;
-      let value;
+      let value2;
       const _onError = (rel, code, msg) => onError(offset + rel, code, msg);
       switch (type) {
         case "scalar":
           _type = Scalar.Scalar.PLAIN;
-          value = plainValue(source, _onError);
+          value2 = plainValue(source, _onError);
           break;
         case "single-quoted-scalar":
           _type = Scalar.Scalar.QUOTE_SINGLE;
-          value = singleQuotedValue(source, _onError);
+          value2 = singleQuotedValue(source, _onError);
           break;
         case "double-quoted-scalar":
           _type = Scalar.Scalar.QUOTE_DOUBLE;
-          value = doubleQuotedValue(source, _onError);
+          value2 = doubleQuotedValue(source, _onError);
           break;
         /* istanbul ignore next should not happen */
         default:
@@ -5252,7 +5252,7 @@ var require_resolve_flow_scalar = __commonJS({
       const valueEnd = offset + source.length;
       const re = resolveEnd.resolveEnd(end, valueEnd, strict, onError);
       return {
-        value,
+        value: value2,
         type: _type,
         comment: re.comment,
         range: [offset, valueEnd, re.offset]
@@ -5443,28 +5443,28 @@ var require_compose_scalar = __commonJS({
     var resolveBlockScalar = require_resolve_block_scalar();
     var resolveFlowScalar = require_resolve_flow_scalar();
     function composeScalar(ctx, token, tagToken, onError) {
-      const { value, type, comment, range } = token.type === "block-scalar" ? resolveBlockScalar.resolveBlockScalar(ctx, token, onError) : resolveFlowScalar.resolveFlowScalar(token, ctx.options.strict, onError);
+      const { value: value2, type, comment, range } = token.type === "block-scalar" ? resolveBlockScalar.resolveBlockScalar(ctx, token, onError) : resolveFlowScalar.resolveFlowScalar(token, ctx.options.strict, onError);
       const tagName = tagToken ? ctx.directives.tagName(tagToken.source, (msg) => onError(tagToken, "TAG_RESOLVE_FAILED", msg)) : null;
       let tag;
       if (ctx.options.stringKeys && ctx.atKey) {
         tag = ctx.schema[identity.SCALAR];
       } else if (tagName)
-        tag = findScalarTagByName(ctx.schema, value, tagName, tagToken, onError);
+        tag = findScalarTagByName(ctx.schema, value2, tagName, tagToken, onError);
       else if (token.type === "scalar")
-        tag = findScalarTagByTest(ctx, value, token, onError);
+        tag = findScalarTagByTest(ctx, value2, token, onError);
       else
         tag = ctx.schema[identity.SCALAR];
       let scalar;
       try {
-        const res = tag.resolve(value, (msg) => onError(tagToken ?? token, "TAG_RESOLVE_FAILED", msg), ctx.options);
+        const res = tag.resolve(value2, (msg) => onError(tagToken ?? token, "TAG_RESOLVE_FAILED", msg), ctx.options);
         scalar = identity.isScalar(res) ? res : new Scalar.Scalar(res);
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         onError(tagToken ?? token, "TAG_RESOLVE_FAILED", msg);
-        scalar = new Scalar.Scalar(value);
+        scalar = new Scalar.Scalar(value2);
       }
       scalar.range = range;
-      scalar.source = value;
+      scalar.source = value2;
       if (type)
         scalar.type = type;
       if (tagName)
@@ -5475,7 +5475,7 @@ var require_compose_scalar = __commonJS({
         scalar.comment = comment;
       return scalar;
     }
-    function findScalarTagByName(schema, value, tagName, tagToken, onError) {
+    function findScalarTagByName(schema, value2, tagName, tagToken, onError) {
       if (tagName === "!")
         return schema[identity.SCALAR];
       const matchWithTest = [];
@@ -5488,7 +5488,7 @@ var require_compose_scalar = __commonJS({
         }
       }
       for (const tag of matchWithTest)
-        if (tag.test?.test(value))
+        if (tag.test?.test(value2))
           return tag;
       const kt = schema.knownTags[tagName];
       if (kt && !kt.collection) {
@@ -5498,10 +5498,10 @@ var require_compose_scalar = __commonJS({
       onError(tagToken, "TAG_RESOLVE_FAILED", `Unresolved tag: ${tagName}`, tagName !== "tag:yaml.org,2002:str");
       return schema[identity.SCALAR];
     }
-    function findScalarTagByTest({ atKey, directives, schema }, value, token, onError) {
-      const tag = schema.tags.find((tag2) => (tag2.default === true || atKey && tag2.default === "key") && tag2.test?.test(value)) || schema[identity.SCALAR];
+    function findScalarTagByTest({ atKey, directives, schema }, value2, token, onError) {
+      const tag = schema.tags.find((tag2) => (tag2.default === true || atKey && tag2.default === "key") && tag2.test?.test(value2)) || schema[identity.SCALAR];
       if (schema.compat) {
-        const compat = schema.compat.find((tag2) => tag2.default && tag2.test?.test(value)) ?? schema[identity.SCALAR];
+        const compat = schema.compat.find((tag2) => tag2.default && tag2.test?.test(value2)) ?? schema[identity.SCALAR];
         if (tag.tag !== compat.tag) {
           const ts = directives.tagString(tag.tag);
           const cs = directives.tagString(compat.tag);
@@ -5654,7 +5654,7 @@ var require_compose_doc = __commonJS({
     var composeNode = require_compose_node();
     var resolveEnd = require_resolve_end();
     var resolveProps = require_resolve_props();
-    function composeDoc(options, directives, { offset, start, value, end }, onError) {
+    function composeDoc(options, directives, { offset, start, value: value2, end }, onError) {
       const opts = Object.assign({ _directives: directives }, options);
       const doc = new Document.Document(void 0, opts);
       const ctx = {
@@ -5666,7 +5666,7 @@ var require_compose_doc = __commonJS({
       };
       const props = resolveProps.resolveProps(start, {
         indicator: "doc-start",
-        next: value ?? end?.[0],
+        next: value2 ?? end?.[0],
         offset,
         onError,
         parentIndent: 0,
@@ -5674,10 +5674,10 @@ var require_compose_doc = __commonJS({
       });
       if (props.found) {
         doc.directives.docStart = true;
-        if (value && (value.type === "block-map" || value.type === "block-seq") && !props.hasNewline)
+        if (value2 && (value2.type === "block-map" || value2.type === "block-seq") && !props.hasNewline)
           onError(props.end, "MISSING_CHAR", "Block collection cannot start on same line with directives-end marker");
       }
-      doc.contents = value ? composeNode.composeNode(ctx, value, props, onError) : composeNode.composeEmptyNode(ctx, props.end, start, null, props, onError);
+      doc.contents = value2 ? composeNode.composeNode(ctx, value2, props, onError) : composeNode.composeEmptyNode(ctx, props.end, start, null, props, onError);
       const contentEnd = doc.contents.range[2];
       const re = resolveEnd.resolveEnd(end, contentEnd, false, onError);
       if (re.comment)
@@ -5923,9 +5923,9 @@ var require_cst_scalar = __commonJS({
       }
       return null;
     }
-    function createScalarToken(value, context) {
+    function createScalarToken(value2, context) {
       const { implicitKey = false, indent, inFlow = false, offset = -1, type = "PLAIN" } = context;
-      const source = stringifyString.stringifyString({ type, value }, {
+      const source = stringifyString.stringifyString({ type, value: value2 }, {
         implicitKey,
         indent: indent > 0 ? " ".repeat(indent) : "",
         inFlow,
@@ -5955,7 +5955,7 @@ var require_cst_scalar = __commonJS({
           return { type: "scalar", offset, indent, source, end };
       }
     }
-    function setScalarValue(token, value, context = {}) {
+    function setScalarValue(token, value2, context = {}) {
       let { afterKey = false, implicitKey = false, inFlow = false, type } = context;
       let indent = "indent" in token ? token.indent : null;
       if (afterKey && typeof indent === "number")
@@ -5978,7 +5978,7 @@ var require_cst_scalar = __commonJS({
           default:
             type = "PLAIN";
         }
-      const source = stringifyString.stringifyString({ type, value }, {
+      const source = stringifyString.stringifyString({ type, value: value2 }, {
         implicitKey: implicitKey || indent === null,
         indent: indent !== null && indent > 0 ? " ".repeat(indent) : "",
         inFlow,
@@ -6124,7 +6124,7 @@ var require_cst_stringify = __commonJS({
         }
       }
     }
-    function stringifyItem({ start, key, sep, value }) {
+    function stringifyItem({ start, key, sep, value: value2 }) {
       let res = "";
       for (const st of start)
         res += st.source;
@@ -6133,8 +6133,8 @@ var require_cst_stringify = __commonJS({
       if (sep)
         for (const st of sep)
           res += st.source;
-      if (value)
-        res += stringifyToken(value);
+      if (value2)
+        res += stringifyToken(value2);
       return res;
     }
     exports2.stringify = stringify;
@@ -7850,7 +7850,7 @@ var require_public_api = __commonJS({
       }
       return doc.toJS(Object.assign({ reviver: _reviver }, options));
     }
-    function stringify(value, replacer, options) {
+    function stringify(value2, replacer, options) {
       let _replacer = null;
       if (typeof replacer === "function" || Array.isArray(replacer)) {
         _replacer = replacer;
@@ -7863,14 +7863,14 @@ var require_public_api = __commonJS({
         const indent = Math.round(options);
         options = indent < 1 ? void 0 : indent > 8 ? { indent: 8 } : { indent };
       }
-      if (value === void 0) {
+      if (value2 === void 0) {
         const { keepUndefined } = options ?? replacer ?? {};
         if (!keepUndefined)
           return void 0;
       }
-      if (identity.isDocument(value) && !_replacer)
-        return value.toString(options);
-      return new Document.Document(value, _replacer, options).toString(options);
+      if (identity.isDocument(value2) && !_replacer)
+        return value2.toString(options);
+      return new Document.Document(value2, _replacer, options).toString(options);
     }
     exports2.parse = parse;
     exports2.parseAllDocuments = parseAllDocuments;
@@ -7955,11 +7955,11 @@ var TEMPLATE_NAMES = {
   yearly: "Yearly",
   thought: "\u601D\u60F3\u6587\u7AE0"
 };
-function safePath(value) {
-  if (typeof value !== "string" || !value || value !== value.trim() || value.length > 500 || /[\\\x00-\x1f\x7f:#|\[\]<>?*"]/.test(value) || value.split("/").some((p) => !p || p.startsWith(".") || p.endsWith(".") || p !== p.trim())) {
-    throw new Error(`\u65E0\u6548\u7684 Vault \u76F8\u5BF9\u8DEF\u5F84\uFF1A${String(value)}`);
+function safePath(value2) {
+  if (typeof value2 !== "string" || !value2 || value2 !== value2.trim() || value2.length > 500 || /[\\\x00-\x1f\x7f:#|\[\]<>?*"]/.test(value2) || value2.split("/").some((p) => !p || p.startsWith(".") || p.endsWith(".") || p !== p.trim())) {
+    throw new Error(`\u65E0\u6548\u7684 Vault \u76F8\u5BF9\u8DEF\u5F84\uFF1A${String(value2)}`);
   }
-  return value;
+  return value2;
 }
 function record(input) {
   if (input === null || typeof input !== "object" || Array.isArray(input)) throw new Error("\u914D\u7F6E\u5FC5\u987B\u662F\u5BF9\u8C61");
@@ -7991,9 +7991,9 @@ function loadConfig(input = {}) {
   const lifeMapPath = optionalFile(raw.lifeMapPath, ".canvas", "\u4EBA\u751F\u5730\u56FE");
   return { schemaVersion: 1, paths, templates, openOnStartup: raw.openOnStartup !== false, githubRemote, currentChapterPath, lifeMapPath };
 }
-function optionalFile(value, extension, name) {
-  if (value === void 0 || value === "") return "";
-  const path = safePath(value);
+function optionalFile(value2, extension, name) {
+  if (value2 === void 0 || value2 === "") return "";
+  const path = safePath(value2);
   if (!path.endsWith(extension)) throw new Error(name + "\u987B\u4F7F\u7528 " + extension + " \u6587\u4EF6");
   return path;
 }
@@ -8588,6 +8588,343 @@ function reviewCompanion(path, config, exists) {
   return exists(target) ? { path: target, label: "\u540C\u6708 AI \u590D\u76D8" } : null;
 }
 
+// src/core/journey.ts
+var JOURNEY_ROOT = "\u4EBA\u751F\u4E3B\u7EBF";
+var JOURNEY_LANES = [
+  { id: "social", label: "\u793E\u4F1A\u7EBF", description: "\u89D2\u8272\u3001\u5236\u5EA6\u4E0E\u5728\u5176\u4E2D\u8D70\u51FA\u7684\u8DEF\u5F84\u3002" },
+  { id: "family", label: "\u5173\u7CFB\u4E0E\u5BB6\u5EAD\u7EBF", description: "\u4EB2\u5BC6\u5173\u7CFB\u3001\u5171\u540C\u751F\u6D3B\u4E0E\u7167\u62A4\u3002" },
+  { id: "life", label: "\u4E2A\u4EBA\uFF0F\u751F\u547D\u7EBF", description: "\u4ECE\u5177\u4F53\u7ECF\u5386\u4E2D\uFF0C\u56DE\u770B\u81EA\u5DF1\u5982\u4F55\u9009\u62E9\u4E0E\u884C\u52A8\u3002" }
+];
+var dayMilliseconds = 864e5;
+var noteName = (path) => path.split("/").at(-1).replace(/\.md$/i, "");
+var value = (raw) => typeof raw === "string" ? raw.trim() : "";
+var values = (raw) => (Array.isArray(raw) ? raw : [raw]).map(value).filter(Boolean);
+var keyFor = ({ path, subpath }) => path + (subpath ?? "");
+var laneFor = (raw) => JOURNEY_LANES.find((lane) => lane.id === raw || lane.label === raw)?.id;
+var laneIds = (raw) => values(raw).map(laneFor).filter((lane) => Boolean(lane));
+var singleLane = (raw) => values(raw).length === 1 ? laneFor(values(raw)[0]) : void 0;
+function relocateJourneyKey(key, oldPath, newPath) {
+  const index = key.indexOf("#");
+  return index < 0 ? relocatePath(key, oldPath, newPath) : relocatePath(key.slice(0, index), oldPath, newPath) + key.slice(index);
+}
+function journeyDate(raw) {
+  const text = value(raw);
+  if (!/^\d{4}-\d{2}(?:-\d{2})?$/.test(text) || text.startsWith("0000")) return;
+  const precision = text.length === 7 ? "month" : "day";
+  const day = precision === "month" ? `${text}-01` : text;
+  const from = Date.parse(`${day}T00:00:00Z`);
+  if (!Number.isFinite(from) || new Date(from).toISOString().slice(0, 10) !== day) return;
+  const nextMonth = new Date(from);
+  nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
+  const through = precision === "month" ? nextMonth.getTime() - dayMilliseconds : from;
+  return { text, precision, from, through, anchor: (from + through) / 2 };
+}
+function compareJourney(left2, right2) {
+  const leftDate = left2.start ?? left2.end, rightDate = right2.start ?? right2.end;
+  if (leftDate && !rightDate) return -1;
+  if (!leftDate && rightDate) return 1;
+  const sameMonth = leftDate?.text.slice(0, 7) === rightDate?.text.slice(0, 7);
+  const order = (node) => node.kind === "chapter" ? node.order ?? Infinity : Infinity;
+  if (sameMonth && order(left2) !== order(right2)) return order(left2) - order(right2);
+  return (leftDate?.anchor ?? 0) - (rightDate?.anchor ?? 0) || left2.title.localeCompare(right2.title, "zh-CN") || left2.id.localeCompare(right2.id);
+}
+function linkInput(raw) {
+  const link = markdownLinks(raw)[0];
+  if (link?.index === 0 && link.end === raw.length) return link;
+  if (raw.startsWith("[")) return { target: "", label: raw };
+  return { target: raw, label: noteName(raw.split("#")[0] || raw) };
+}
+function cachedReader(read) {
+  const cache = /* @__PURE__ */ new Map();
+  return (path) => {
+    if (!cache.has(path)) cache.set(path, read(path));
+    return cache.get(path);
+  };
+}
+function loadHomeJourney(entries, read, resolve, options = {}) {
+  const get = cachedReader(read);
+  const neighborhood = new Map(entries.map((record2) => [record2.path, record2]));
+  const follow = (record2, fields) => fields.flatMap((field) => values(record2.properties[field]).flatMap((raw) => {
+    const link = linkInput(raw);
+    const target = link.target && resolve(link.target, record2.path);
+    const neighbor = target && isWithin(target.path, JOURNEY_ROOT) ? get(target.path) : void 0;
+    if (!neighbor) return [];
+    neighborhood.set(neighbor.path, neighbor);
+    return [neighbor];
+  }));
+  for (const entry of entries) {
+    const chapters = follow(entry, ["\u5F53\u524D\u9879", "\u5173\u8054\u7AE0\u8282"]);
+    follow(entry, ["\u5173\u8054\u7ECF\u5386"]);
+    for (const chapter of chapters) {
+      const branches = follow(chapter, ["\u5173\u8054\u652F\u7EBF"]);
+      for (const source of options.backlinks?.(chapter.path) ?? []) {
+        if (!isWithin(source, JOURNEY_ROOT) || branches.some((branch) => branch.path === source)) continue;
+        const record2 = get(source);
+        const origins = values(record2?.properties.\u8D77\u70B9\u7AE0\u8282);
+        if (record2?.properties.\u5B58\u6863\u7C7B\u578B !== "\u652F\u7EBF" || origins.length !== 1) continue;
+        const origin = linkInput(origins[0]);
+        if (!origin.target || resolve(origin.target, source)?.path !== chapter.path) continue;
+        neighborhood.set(source, record2);
+        branches.push(record2);
+      }
+      follow(chapter, ["\u5173\u8054\u7ECF\u5386", "\u8D77\u70B9\u8F6C\u6298"]);
+      for (const branch of branches) follow(branch, ["\u6536\u675F\u8F6C\u6298", "\u5173\u8054\u7ECF\u5386"]);
+    }
+  }
+  return buildJourney([...neighborhood.values()], get, resolve, options.today);
+}
+function buildJourney(records, read, resolve, today2) {
+  const within = records.filter((record2) => isWithin(record2.path, JOURNEY_ROOT));
+  const recordsByPath = new Map(within.map((record2) => [record2.path, record2]));
+  const get = cachedReader((path) => recordsByPath.get(path) ?? read(path));
+  const issues = [];
+  const issue = (record2, message) => issues.push({ path: record2.path, message });
+  const todayStart = journeyDate(today2)?.from;
+  const future = (date2) => date2 && todayStart !== void 0 && date2.from > todayStart;
+  const links = (record2, field) => {
+    const seen = /* @__PURE__ */ new Set();
+    return values(record2.properties[field]).flatMap((raw) => {
+      const link = linkInput(raw);
+      const target = link.target && resolve(link.target, record2.path);
+      if (!target) {
+        issue(record2, `${field}\u94FE\u63A5\u4E0D\u53EF\u7528\uFF1A${link.label}`);
+        return [];
+      }
+      const id = keyFor(target);
+      if (seen.has(id)) return [];
+      seen.add(id);
+      return [{ ...target, title: link.label || noteName(target.path) }];
+    });
+  };
+  const single = (record2, field) => {
+    if (values(record2.properties[field]).length > 1) {
+      issue(record2, `${field}\u53EA\u80FD\u6307\u5B9A\u4E00\u7BC7\u7B14\u8BB0\u3002`);
+      return;
+    }
+    const target = links(record2, field)[0];
+    if (target?.subpath) {
+      issue(record2, `${field}\u9700\u8981\u6307\u5411\u6574\u7BC7\u7B14\u8BB0\u3002`);
+      return;
+    }
+    return target?.path;
+  };
+  const date = (record2, field) => {
+    const raw = record2.properties[field];
+    const parsed = journeyDate(raw);
+    if (raw != null && raw !== "" && !parsed) issue(record2, `${field}\u987B\u4E3A YYYY-MM \u6216 YYYY-MM-DD\u3002`);
+    return parsed;
+  };
+  const verifyRange = (record2, start, end) => {
+    if (start && end && end.through < start.from) {
+      issue(record2, "\u7ED3\u675F\u65E5\u671F\u65E9\u4E8E\u5F00\u59CB\u65E5\u671F\u3002");
+      return;
+    }
+    return end;
+  };
+  const base = (record2, lanes2) => ({
+    id: record2.path,
+    target: { path: record2.path },
+    title: value(record2.properties.\u6807\u9898) || noteName(record2.path),
+    summary: value(record2.properties.\u6458\u8981),
+    lanes: lanes2,
+    sources: links(record2, "\u5173\u8054\u51B3\u7B56")
+  });
+  const chapters = /* @__PURE__ */ new Map();
+  const branches = /* @__PURE__ */ new Map();
+  const events = /* @__PURE__ */ new Map();
+  const entries = /* @__PURE__ */ new Map();
+  const appendLane = (event, lanes2, related) => {
+    if (!event.related.includes(related)) event.related.push(related);
+    event.lanes = JOURNEY_LANES.map((lane) => lane.id).filter((id) => lanes2.includes(id) || event.lanes.includes(id));
+  };
+  for (const record2 of within) {
+    const { properties } = record2;
+    const type = properties.\u5B58\u6863\u7C7B\u578B;
+    const listedLanes = laneIds(properties.\u4E3B\u7EBF);
+    const lanes2 = JOURNEY_LANES.map((lane) => lane.id).filter((id) => listedLanes.includes(id));
+    if (type === "\u4E3B\u7EBF") {
+      const lane = singleLane(properties.\u4E3B\u7EBF);
+      if (record2.path.split("/").length !== 2) issue(record2, "\u4E3B\u7EBF\u5165\u53E3\u8BF7\u653E\u5728\u300C\u4EBA\u751F\u4E3B\u7EBF\u300D\u7684\u6839\u76EE\u5F55\u3002");
+      else if (!lane) issue(record2, "\u4E3B\u7EBF\u5165\u53E3\u9700\u8981\u4E00\u4E2A\u6709\u6548\u7684\u4E3B\u7EBF\u6807\u8BC6\u3002");
+      else if (entries.has(lane)) issue(record2, "\u540C\u4E00\u6761\u4E3B\u7EBF\u53EA\u80FD\u914D\u7F6E\u4E00\u7BC7\u5165\u53E3\u7B14\u8BB0\u3002");
+      else entries.set(lane, record2);
+    } else if (type === "\u7AE0\u8282") {
+      const lane = singleLane(properties.\u4E3B\u7EBF);
+      if (!lane) issue(record2, "\u7AE0\u8282\u9700\u8981\u4E00\u4E2A\u6709\u6548\u7684\u4E3B\u7EBF\u6807\u8BC6\u3002");
+      const status2 = properties.\u7AE0\u8282\u72B6\u6001 === "\u6B63\u5F0F" || properties.\u7AE0\u8282\u72B6\u6001 === "\u6682\u9898" ? properties.\u7AE0\u8282\u72B6\u6001 : void 0;
+      if (!status2) issue(record2, "\u7AE0\u8282\u72B6\u6001\u987B\u4E3A\u300C\u6B63\u5F0F\u300D\u6216\u300C\u6682\u9898\u300D\u3002");
+      const order = typeof properties.\u7AE0\u5E8F === "number" ? properties.\u7AE0\u5E8F : /^\d+$/.test(value(properties.\u7AE0\u5E8F)) ? Number(properties.\u7AE0\u5E8F) : NaN;
+      const start = date(record2, "\u5F00\u59CB\u65E5\u671F"), end = date(record2, "\u7ED3\u675F\u65E5\u671F");
+      chapters.set(record2.path, {
+        ...base(record2, lane ? [lane] : []),
+        kind: "chapter",
+        status: status2,
+        start,
+        end,
+        order: Number.isSafeInteger(order) && order >= 0 ? order : void 0,
+        ready: Boolean(status2 && lane)
+      });
+    } else if (type === "\u652F\u7EBF") {
+      const status2 = ["\u63A2\u7D22\u4E2D", "\u6682\u505C", "\u5DF2\u7ED3\u675F", "\u5DF2\u6536\u675F"].find((state) => state === properties.\u652F\u7EBF\u72B6\u6001);
+      if (!status2) issue(record2, "\u8BF7\u6838\u5BF9\u652F\u7EBF\u72B6\u6001\u3002");
+      const start = date(record2, "\u5F00\u59CB\u65E5\u671F");
+      branches.set(record2.path, {
+        ...base(record2, []),
+        kind: "branch",
+        status: status2,
+        start,
+        end: verifyRange(record2, start, date(record2, "\u7ED3\u675F\u65E5\u671F")),
+        result: value(properties.\u7ED3\u679C)
+      });
+    } else if (type === "\u8F6C\u6298" || type === "\u7ECF\u5386") {
+      if (values(properties.\u4E3B\u7EBF).length !== listedLanes.length) issue(record2, "\u5305\u542B\u672A\u8BC6\u522B\u7684\u4E3B\u7EBF\u6807\u8BC6\u3002");
+      const info = base(record2, lanes2);
+      const start = date(record2, "\u53D1\u751F\u65E5\u671F");
+      const pending = type === "\u8F6C\u6298" && Boolean(future(start));
+      if (pending) issue(record2, "\u8F6C\u6298\u7684\u53D1\u751F\u65E5\u671F\u5C1A\u672A\u5230\u8FBE\u3002");
+      events.set(record2.path, {
+        ...info,
+        kind: type === "\u8F6C\u6298" ? "turn" : "experience",
+        start,
+        pending,
+        related: [],
+        sources: [...links(record2, "\u5173\u8054\u7ECF\u5386"), ...info.sources]
+      });
+    }
+  }
+  for (const chapter of chapters.values()) {
+    const record2 = recordsByPath.get(chapter.id);
+    let resolvedStart = chapter.start;
+    if (values(record2.properties.\u8D77\u70B9\u8F6C\u6298).length) {
+      const id = single(record2, "\u8D77\u70B9\u8F6C\u6298");
+      const turn = id ? events.get(id) : void 0;
+      if (turn?.kind !== "turn" || !turn.start) {
+        issue(record2, "\u8D77\u70B9\u8F6C\u6298\u9700\u8981\u5F15\u7528\u4E00\u7BC7\u6709\u53D1\u751F\u65E5\u671F\u7684\u300C\u8F6C\u6298\u300D\u3002");
+        if (chapter.status === "\u6B63\u5F0F") chapter.ready = false;
+      } else if (turn.pending) {
+        issue(record2, "\u8D77\u70B9\u8F6C\u6298\u5C1A\u672A\u53D1\u751F\uFF0C\u4E0D\u80FD\u4F5C\u4E3A\u6B63\u5F0F\u7684\u65B0\u7AE0\u8D77\u70B9\u3002");
+        if (chapter.status === "\u6B63\u5F0F") chapter.ready = false;
+      } else if (chapter.start && (chapter.start.through < turn.start.from || turn.start.through < chapter.start.from)) {
+        issue(record2, "\u5F00\u59CB\u65E5\u671F\u4E0E\u8D77\u70B9\u8F6C\u6298\u7684\u65E5\u671F\u4E0D\u4E00\u81F4\u3002");
+        if (chapter.status === "\u6B63\u5F0F") chapter.ready = false;
+      } else {
+        chapter.beginsAt = turn.id;
+        chapter.start ??= turn.start;
+        resolvedStart = chapter.start.precision === "day" ? chapter.start : turn.start;
+        appendLane(turn, chapter.lanes, chapter.id);
+      }
+    }
+    if (future(resolvedStart)) {
+      issue(record2, "\u7AE0\u8282\u7684\u5F00\u59CB\u65E5\u671F\u5C1A\u672A\u5230\u8FBE\u3002");
+      chapter.ready = false;
+    }
+    chapter.end = verifyRange(record2, resolvedStart, chapter.end);
+  }
+  for (const branch of branches.values()) {
+    const record2 = recordsByPath.get(branch.id);
+    const origin = single(record2, "\u8D77\u70B9\u7AE0\u8282");
+    const chapter = origin ? chapters.get(origin) : void 0;
+    if (chapter) {
+      branch.origin = chapter.id;
+      branch.lanes = chapter.lanes;
+    } else issue(record2, "\u8D77\u70B9\u7AE0\u8282\u9700\u8981\u5F15\u7528\u4E00\u7BC7\u300C\u7AE0\u8282\u300D\u3002");
+    if (branch.status === "\u5DF2\u6536\u675F") {
+      const destination = single(record2, "\u6536\u675F\u8F6C\u6298");
+      const turn = destination ? events.get(destination) : void 0;
+      const branchFloor = Math.max(branch.start?.from ?? -Infinity, branch.end?.from ?? -Infinity);
+      if (turn?.kind !== "turn") issue(record2, "\u5DF2\u6536\u675F\u7684\u652F\u7EBF\u9700\u8981\u53EF\u89E3\u6790\u7684\u6536\u675F\u8F6C\u6298\u3002");
+      else if (turn.pending) issue(record2, "\u6536\u675F\u8F6C\u6298\u5C1A\u672A\u53D1\u751F\u3002");
+      else if (turn.start && turn.start.through < branchFloor) issue(record2, "\u6536\u675F\u8F6C\u6298\u65E9\u4E8E\u652F\u7EBF\u63A2\u7D22\u65E5\u671F\u3002");
+      else {
+        branch.closesAt = turn.id;
+        appendLane(turn, branch.lanes, branch.id);
+      }
+    }
+  }
+  const attachExperiences = (record2, lanes2) => links(record2, "\u5173\u8054\u7ECF\u5386").flatMap((link) => {
+    const key = keyFor(link);
+    let event = events.get(key);
+    if (!event) {
+      const properties = get(link.path)?.properties ?? {};
+      if (!link.subpath && ["\u4E3B\u7EBF", "\u7AE0\u8282", "\u652F\u7EBF"].some((type) => type === properties.\u5B58\u6863\u7C7B\u578B)) {
+        issue(record2, `\u5173\u8054\u7ECF\u5386\u8BF7\u6307\u5411\u7ECF\u5386\u3001\u539F\u59CB\u7B14\u8BB0\u6216\u5177\u4F53\u6BB5\u843D\uFF1A${link.title}`);
+        return [];
+      }
+      event = {
+        id: key,
+        kind: "experience",
+        title: value(properties.\u6807\u9898) || link.title,
+        target: { path: link.path, subpath: link.subpath },
+        lanes: [],
+        related: [],
+        sources: [],
+        summary: value(properties.\u6458\u8981),
+        start: journeyDate(properties.\u53D1\u751F\u65E5\u671F ?? properties.\u65E5\u671F ?? properties.date)
+      };
+      events.set(key, event);
+    }
+    appendLane(event, lanes2, record2.path);
+    return [key];
+  });
+  for (const item of [...chapters.values(), ...branches.values()]) attachExperiences(recordsByPath.get(item.id), item.lanes);
+  const lanes = JOURNEY_LANES.map((lane) => {
+    const entry = entries.get(lane.id);
+    if (!entry) return { ...lane, currentIssue: false, related: [], chapters: [] };
+    const hasCurrent = values(entry.properties.\u5F53\u524D\u9879).length > 0;
+    const id = single(entry, "\u5F53\u524D\u9879");
+    const chapter = id ? chapters.get(id) : void 0;
+    const current = chapter?.lanes.includes(lane.id) && chapter.ready ? chapter : void 0;
+    if (hasCurrent && !current) issue(entry, "\u5F53\u524D\u9879\u5FC5\u987B\u662F\u672C\u7EBF\u5DF2\u786E\u8BA4\u7684\u7AE0\u8282\u6216\u6682\u9898\uFF1B\u4E0D\u4F1A\u4ECE\u652F\u7EBF\u81EA\u52A8\u5F00\u7AE0\u3002");
+    const linkedChapters = links(entry, "\u5173\u8054\u7AE0\u8282").flatMap((target) => {
+      const linked = chapters.get(target.path);
+      if (linked?.lanes.includes(lane.id) && !target.subpath) return [linked];
+      issue(entry, `\u5173\u8054\u7AE0\u8282\u9700\u8981\u6307\u5411\u672C\u7EBF\u7AE0\u8282\uFF1A${target.title}`);
+      return [];
+    }).sort(compareJourney).map((linked) => linked.id);
+    return {
+      ...lane,
+      entry: { path: entry.path, title: noteName(entry.path) },
+      description: value(entry.properties.\u6458\u8981) || lane.description,
+      current,
+      currentIssue: hasCurrent && !current,
+      related: attachExperiences(entry, [lane.id]),
+      chapters: linkedChapters
+    };
+  });
+  return {
+    lanes,
+    configured: entries.size > 0,
+    chapters: [...chapters.values()].sort(compareJourney),
+    branches: [...branches.values()].sort(compareJourney),
+    events: [...events.values()].sort(compareJourney),
+    nodes: new Map([...chapters, ...branches, ...events]),
+    issues
+  };
+}
+function relatedJourney(data, id) {
+  const node = data.nodes.get(id);
+  if (!node) return [];
+  const ids = /* @__PURE__ */ new Set();
+  for (const branch of data.branches) {
+    if (branch.origin === id || branch.closesAt === id) ids.add(branch.id);
+    if (branch.id === id) {
+      if (branch.origin) ids.add(branch.origin);
+      if (branch.closesAt) ids.add(branch.closesAt);
+    }
+  }
+  for (const chapter of data.chapters) {
+    if (chapter.beginsAt === id) ids.add(chapter.id);
+    if (chapter.id === id && chapter.beginsAt) ids.add(chapter.beginsAt);
+    if (node.kind === "branch" && node.closesAt && chapter.beginsAt === node.closesAt) ids.add(chapter.id);
+  }
+  for (const event of data.events) {
+    if (event.related.includes(id)) ids.add(event.id);
+    if (event.id === id) for (const other of event.related) ids.add(other);
+  }
+  ids.delete(id);
+  return [...ids].flatMap((other) => data.nodes.get(other) ?? []).sort(compareJourney);
+}
+
 // src/obsidian/vault-service.ts
 var import_obsidian = require("obsidian");
 var ObsidianVault = class {
@@ -8611,6 +8948,36 @@ var ObsidianVault = class {
   }
   reviewPaths() {
     return (this.app.vault.getFolderByPath(REVIEW_FOLDER)?.children ?? []).filter((file) => file instanceof import_obsidian.TFile && file.extension === "md").map((file) => file.path);
+  }
+  journey(history, dependencies, today2) {
+    const { vault, metadataCache } = this.app;
+    const read = (path) => {
+      const file = vault.getFileByPath(path);
+      if (!file || file.extension !== "md") return;
+      dependencies.add(path);
+      return { path, properties: metadataCache.getFileCache(file)?.frontmatter ?? {} };
+    };
+    const records = [];
+    const pending = [...vault.getFolderByPath(JOURNEY_ROOT)?.children ?? []];
+    while (pending.length) {
+      const file = pending.pop();
+      if (file instanceof import_obsidian.TFolder && history) pending.push(...file.children);
+      if (!(file instanceof import_obsidian.TFile) || file.extension !== "md") continue;
+      const properties = metadataCache.getFileCache(file)?.frontmatter;
+      if (properties && (history ? Boolean(properties.\u5B58\u6863\u7C7B\u578B) : properties.\u5B58\u6863\u7C7B\u578B === "\u4E3B\u7EBF")) {
+        dependencies.add(file.path);
+        records.push({ path: file.path, properties });
+      }
+    }
+    records.sort((left2, right2) => left2.path.localeCompare(right2.path, "zh-CN"));
+    const resolve = (target, origin) => this.resolveNote(target, origin, dependencies);
+    if (history) return buildJourney(records, read, resolve, today2);
+    let localLinks;
+    const backlinks = (chapter) => {
+      localLinks ??= Object.entries(metadataCache.resolvedLinks).filter(([source]) => isWithin(source, JOURNEY_ROOT));
+      return localLinks.flatMap(([source, targets]) => targets[chapter] ? [source] : []);
+    };
+    return loadHomeJourney(records, read, resolve, { today: today2, backlinks });
   }
   resolveNote(target, origin, dependencies) {
     if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(target)) return null;
@@ -8669,11 +9036,11 @@ function el(parent, tag, cls = "", text) {
   return child;
 }
 function button(parent, text, action, cls = "", label) {
-  const control = el(parent, "button", cls, text);
-  control.type = "button";
-  control.dataset.action = action;
-  if (label) control.setAttribute("aria-label", label);
-  return control;
+  const control2 = el(parent, "button", cls, text);
+  control2.type = "button";
+  control2.dataset.action = action;
+  if (label) control2.setAttribute("aria-label", label);
+  return control2;
 }
 function panel(parent, title, cls) {
   const card = el(parent, "section", cls ? `la-card ${cls}` : "la-card");
@@ -8682,10 +9049,10 @@ function panel(parent, title, cls) {
   return { card, header };
 }
 function openButton(parent, text, path, cls = "", subpath) {
-  const control = button(parent, text, "file", cls);
-  control.dataset.path = path;
-  if (subpath) control.dataset.subpath = subpath;
-  return control;
+  const control2 = button(parent, text, "file", cls);
+  control2.dataset.path = path;
+  if (subpath) control2.dataset.subpath = subpath;
+  return control2;
 }
 function monthLabel(month) {
   return `${Number(month.slice(0, 4))} \u5E74 ${Number(month.slice(5))} \u6708`;
@@ -8701,8 +9068,8 @@ function renderReviewStatus(parent, { latest, pending }) {
     latestButton.setAttribute("aria-label", `\u6253\u5F00 ${monthLabel(latest.month)} AI \u590D\u76D8`);
   }
   if (pending) {
-    const status = pending.reason === "unreadable" ? "\u8BFB\u53D6\u5931\u8D25" : "\u5C1A\u672A\u751F\u6210";
-    el(meta, "span", "la-review-status", `${monthLabel(pending.month)}${status}`);
+    const status2 = pending.reason === "unreadable" ? "\u8BFB\u53D6\u5931\u8D25" : "\u5C1A\u672A\u751F\u6210";
+    el(meta, "span", "la-review-status", `${monthLabel(pending.month)}${status2}`);
   } else if (!latest) el(meta, "span", "la-review-status", "\u5F85\u9996\u6B21\u590D\u76D8");
 }
 function renderTrend(parent, points) {
@@ -8769,14 +9136,14 @@ function renderAttributes(parent, { latest, cards, pending }) {
       evidence.dataset.focusKey = "rating-" + attribute;
       evidence.setAttribute("aria-label", `\u67E5\u770B${attribute}\u7684\u8BC4\u5206\u4F9D\u636E`);
     }
-    const value = el(card, "div", "la-attribute-value");
-    const digits = el(value, "span", "la-score");
+    const value2 = el(card, "div", "la-attribute-value");
+    const digits = el(value2, "span", "la-score");
     if (rating) {
       el(digits, "strong", "", String(rating.score));
       el(digits, "span", "la-score-scale", "/5");
     } else if (!latest) el(digits, "span", "la-score-dash", "\u2014");
-    const status = rating ? change ? changeText[change] : "\u6682\u65E0\u5BF9\u6BD4" : latest ? "\u8D44\u6599\u4E0D\u8DB3" : pending ? "\u8BFB\u53D6\u5931\u8D25" : "\u5F85\u9996\u6B21\u590D\u76D8";
-    el(value, "span", "la-compare", status);
+    const status2 = rating ? change ? changeText[change] : "\u6682\u65E0\u5BF9\u6BD4" : latest ? "\u8D44\u6599\u4E0D\u8DB3" : pending ? "\u8BFB\u53D6\u5931\u8D25" : "\u5F85\u9996\u6B21\u590D\u76D8";
+    el(value2, "span", "la-compare", status2);
     renderTrend(card, points);
   }
 }
@@ -8803,10 +9170,10 @@ function renderReviewSummary(parent, { latest }) {
 
 // src/core/chapter.ts
 var CHAPTER_ROLES = ["\u4E3B\u7EBF", "\u652F\u7EBF", "\u5F85\u590D\u76D8\u51B3\u7B56"];
-function dateField(value) {
-  if (typeof value !== "string" || !value.trim()) return;
+function dateField(value2) {
+  if (typeof value2 !== "string" || !value2.trim()) return;
   try {
-    return parseDay(value.trim()).format("YYYY-MM-DD");
+    return parseDay(value2.trim()).format("YYYY-MM-DD");
   } catch {
     return;
   }
@@ -8867,8 +9234,8 @@ function renderChapter(parent, { chapter, map }) {
     button(header, map === "missing" ? "\u91CD\u65B0\u9009\u62E9\u4EBA\u751F\u5730\u56FE" : "\u8BBE\u7F6E\u4EBA\u751F\u5730\u56FE", "settings", "la-text-button").dataset.focusKey = "life-map";
   }
   if (typeof chapter === "string") {
-    const status = { unconfigured: "\u5C1A\u672A\u9009\u62E9\u5F53\u524D\u7AE0\u8282", missing: "\u7AE0\u8282\u6587\u4EF6\u5DF2\u79FB\u8D70\u6216\u5220\u9664", unreadable: "\u65E0\u6CD5\u8BFB\u53D6\u7AE0\u8282\u6587\u4EF6" };
-    el(card, "p", "la-copy-muted", status[chapter]);
+    const status2 = { unconfigured: "\u5C1A\u672A\u9009\u62E9\u5F53\u524D\u7AE0\u8282", missing: "\u7AE0\u8282\u6587\u4EF6\u5DF2\u79FB\u8D70\u6216\u5220\u9664", unreadable: "\u65E0\u6CD5\u8BFB\u53D6\u7AE0\u8282\u6587\u4EF6" };
+    el(card, "p", "la-copy-muted", status2[chapter]);
     button(card, "\u9009\u62E9\u7AE0\u8282", "settings", "la-text-button").dataset.focusKey = "chapter-note";
     return;
   }
@@ -8897,16 +9264,584 @@ function renderChapter(parent, { chapter, map }) {
   }
 }
 
+// src/ui/journey-layout.ts
+var left = 72;
+var right = 86;
+var timelineLabelWidth = 126;
+var onTimeline = (node) => Boolean(node.lanes.length && (node.start || node.end) && (node.kind !== "chapter" || node.ready) && (node.kind !== "turn" || !node.pending));
+function monthIndex(time) {
+  const date = new Date(time);
+  return date.getUTCFullYear() * 12 + date.getUTCMonth();
+}
+function timeAtMonth(index) {
+  const date = /* @__PURE__ */ new Date(0);
+  return date.setUTCFullYear(Math.floor(index / 12), index % 12, 1);
+}
+function layoutJourney(data, today2, expanded) {
+  const todayTime = journeyDate(today2)?.anchor ?? Date.now();
+  const dated = [...data.nodes.values()].filter(onTimeline);
+  const turnAnchors = new Map(data.events.flatMap((event) => event.kind === "turn" && event.start ? [[event.id, event.start.anchor]] : []));
+  for (const node of dated) {
+    if (node.kind !== "branch" || !node.closesAt) continue;
+    const anchor = turnAnchors.get(node.closesAt);
+    if (anchor !== void 0) turnAnchors.set(node.closesAt, Math.max(anchor, node.start?.from ?? -Infinity, node.end?.from ?? -Infinity));
+  }
+  const bounds = (node) => {
+    const startDate = node.start ?? node.end;
+    const milestone = node.kind === "chapter" && node.beginsAt ? turnAnchors.get(node.beginsAt) : turnAnchors.get(node.id);
+    let start = milestone ?? startDate.anchor;
+    let end = node.end?.anchor ?? start;
+    if (node.kind === "branch" && node.closesAt) end = Math.min(end, turnAnchors.get(node.closesAt) ?? end);
+    if (end < start && milestone === void 0 && startDate.precision === "month" && node.end?.precision === "day") start = end;
+    return { fromX: position(start), toX: position(Math.max(start, end)) };
+  };
+  let minimum = todayTime, maximum = todayTime;
+  for (const node of dated) {
+    minimum = Math.min(minimum, (node.start ?? node.end).from);
+    maximum = Math.max(maximum, (node.end ?? node.start).through);
+  }
+  const firstMonth = monthIndex(minimum), lastMonth = monthIndex(maximum);
+  const count = Math.max(3, lastMonth - firstMonth + 1);
+  const step = [1, 2, 3, 6, 12, 24, 60, 120].find((amount) => count / amount <= 13) ?? Math.ceil(count / 156) * 12;
+  const first = Math.floor(firstMonth / step) * step;
+  const after = Math.max(first + step * 3, (Math.floor(lastMonth / step) + 1) * step);
+  const from = timeAtMonth(first), through = timeAtMonth(after);
+  const width = Math.max(880, left + right + (after - first) / step * 103);
+  const span = width - left - right;
+  const position = (time) => left + (time - from) * span / (through - from);
+  const timeAt = (pixel) => from + (pixel - left) * (through - from) / span;
+  const ticks = [];
+  for (let index = first; index < after; index += step) {
+    const year = Math.floor(index / 12), month = index % 12 + 1;
+    ticks.push({ x: position(timeAtMonth(index)), label: step >= 12 ? `${year} \u5E74` : `${year}.${String(month).padStart(2, "0")}` });
+  }
+  const points = [];
+  let nextTrack = 74;
+  const tracks = JOURNEY_LANES.map((lane) => {
+    const track = { ...lane, y: nextTrack };
+    const stops = [];
+    const markers = dated.filter((node) => node.lanes[0] === lane.id && (node.kind !== "branch" || node.origin && expanded.has(node.origin))).map((node) => {
+      const range = bounds(node);
+      return { node, range, x: node.kind === "branch" ? range.toX : range.fromX };
+    }).sort((left2, right2) => left2.x - right2.x);
+    for (const { node, x, range } of markers) {
+      const labelX = Math.min(width - timelineLabelWidth / 2 - 16, Math.max(left, x));
+      const begin = labelX - timelineLabelWidth / 2;
+      let row = stops.findIndex((stop) => stop <= begin);
+      if (row === -1) row = stops.length;
+      stops[row] = begin + timelineLabelWidth + 7;
+      const labelTop = track.y + (node.kind === "branch" ? 34 : 13) + row * 53;
+      points.push({
+        node,
+        lane: lane.id,
+        x,
+        y: node.kind === "branch" ? labelTop - 6 : track.y,
+        labelX,
+        labelTop,
+        ...range
+      });
+    }
+    nextTrack += Math.max(84, 30 + stops.length * 53 + (markers.some((marker) => marker.node.kind === "branch") ? 20 : 0));
+    return track;
+  });
+  return { width, height: nextTrack - 29, ticks, tracks, points, position, timeAt, now: position(todayTime), hasDates: dated.length > 0 };
+}
+
+// src/ui/journey.ts
+function run(action, actions) {
+  try {
+    void Promise.resolve(action()).catch((error) => actions.error(error instanceof Error ? error.message : "\u64CD\u4F5C\u5931\u8D25"));
+  } catch (error) {
+    actions.error(error instanceof Error ? error.message : "\u64CD\u4F5C\u5931\u8D25");
+  }
+}
+function control(parent, text, action, handler, cls, focusKey = action) {
+  const entry = button(parent, text, action, cls);
+  entry.dataset.focusKey = focusKey;
+  entry.addEventListener("click", handler);
+  return entry;
+}
+function noteLink(parent, text, target, actions, prefix = "") {
+  return control(
+    parent,
+    text,
+    "journey-note",
+    () => run(() => actions.openNote(target.path, target.subpath), actions),
+    "la-journey-link",
+    `${prefix}note:${target.path}${target.subpath ?? ""}`
+  );
+}
+function restoreFocus(parent, key) {
+  if (!key) return false;
+  const match = [...parent.querySelectorAll("[data-focus-key]")].find((item) => item.dataset.focusKey === key && !item.closest("[hidden]"));
+  match?.focus({ preventScroll: true });
+  return Boolean(match);
+}
+function shape(parent, tag, attributes) {
+  const element = parent.ownerDocument.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [attribute, value2] of Object.entries(attributes)) element.setAttribute(attribute, String(value2));
+  parent.append(element);
+  return element;
+}
+function status(node) {
+  switch (node.kind) {
+    case "chapter":
+      return node.ready ? node.status === "\u6682\u9898" ? "\u6682\u9898" : node.order === 0 ? "\u5E8F\u7AE0" : node.order ? `\u7B2C ${node.order} \u7AE0` : "\u6B63\u5F0F\u7AE0\u8282" : "\u7AE0\u8282\u5F85\u6838\u5BF9";
+    case "branch":
+      return node.status === "\u5DF2\u6536\u675F" && !node.closesAt ? "\u6536\u675F\u5F85\u6838\u5BF9" : node.status ?? "\u72B6\u6001\u5F85\u6838\u5BF9";
+    case "turn":
+      return node.pending ? "\u8F6C\u6298\u5F85\u6838\u5BF9" : "\u8F6C\u6298";
+    case "experience":
+      return "\u7ECF\u5386";
+  }
+}
+function dateLabel(node) {
+  if (node.start && node.end) return node.start.text === node.end.text ? node.start.text : `${node.start.text} \u81F3 ${node.end.text}`;
+  if (node.end) return `\u7ED3\u675F\u4E8E ${node.end.text}`;
+  return node.start?.text ?? "\u672A\u6CE8\u660E\u65E5\u671F";
+}
+function nodeInfo(parent, node, data, actions, pick) {
+  const type = node.lanes.length > 1 ? `${status(node)} \xB7 \u4EA4\u4F1A` : status(node);
+  el(parent, "p", "la-journey-meta", [type, dateLabel(node), ...JOURNEY_LANES.filter((lane) => node.lanes.includes(lane.id)).map((lane) => lane.label)].join(" \xB7 "));
+  if (node.summary) el(parent, "p", "la-journey-copy", node.summary);
+  if (node.kind === "branch" && node.result) el(parent, "p", "la-journey-copy", `\u7ED3\u679C\uFF1A${node.result}`);
+  const related = relatedJourney(data, node.id);
+  if (related.length) {
+    const row = el(parent, "div", "la-journey-related");
+    el(row, "span", "", "\u5173\u8054");
+    for (const item of related) {
+      const text = `${status(item)} \xB7 ${item.title}`;
+      if (pick) control(row, text, "map-related", () => pick(item.id), "la-journey-link", `related:${item.id}`);
+      else noteLink(row, text, item.target, actions, "related:");
+    }
+  }
+  const sources = el(parent, "div", "la-journey-related");
+  noteLink(sources, "\u6253\u5F00\u539F\u6587 \u2197", node.target, actions);
+  for (const source of node.sources) noteLink(sources, source.title, source, actions, "source:");
+}
+var sweepWidth = 640;
+var sweepHeight = 174;
+var trackY = (index, fraction) => 29 + index * 58 + Math.sin(fraction * 14 + index * 0.8) * 5;
+function mountJourneyHome(parent, data, state, today2, actions, canvas) {
+  const hero = el(parent, "section", "la-journey la-journey-hero");
+  hero.setAttribute("aria-label", "\u4E09\u6761\u4E3B\u7EBF");
+  const header = el(hero, "div", "la-journey-head");
+  el(header, "h2", "", "\u4E09\u6761\u4E3B\u7EBF");
+  const tools = el(header, "div", "la-journey-tools");
+  if (canvas) noteLink(tools, "\u539F Canvas", { path: canvas }, actions, "home:");
+  const mapKey = "journey-map";
+  control(tools, "\u4EBA\u751F\u5730\u56FE \u2197", "journey-map", () => run(() => actions.openMap(state.lane, state.selected, mapKey), actions), "la-journey-link", mapKey);
+  const figure = el(hero, "div", "la-journey-figure");
+  const labels = el(figure, "div", "la-journey-labels");
+  const sweep = el(figure, "div", "la-journey-sweep");
+  const svg = shape(sweep, "svg", { viewBox: `0 0 ${sweepWidth} ${sweepHeight}`, preserveAspectRatio: "none", "aria-hidden": "true" });
+  const laneControls = /* @__PURE__ */ new Map();
+  for (const [index, lane] of data.lanes.entries()) {
+    const label = control(labels, "", "journey-lane", () => selectLane(lane.id, true), "la-journey-lane", `journey-lane:${lane.id}`);
+    label.dataset.lane = lane.id;
+    laneControls.set(lane.id, label);
+    const copy = el(label, "span", "la-journey-lane-copy");
+    el(copy, "strong", "", lane.label);
+    const title = lane.current ? `${lane.current.status === "\u6682\u9898" ? "\u6682\u9898 \xB7 " : ""}${lane.current.title}` : lane.currentIssue ? "\u5F53\u524D\u9879\u5F85\u6838\u5BF9" : "\u5F53\u524D\u7559\u767D";
+    el(copy, "span", "", title).title = title;
+    el(label, "span", "la-journey-chevron", "\u203A").setAttribute("aria-hidden", "true");
+    const trace = [...Array(41)].map((_, point) => `${point === 0 ? "M" : "L"}${point * 16} ${trackY(index, point / 40).toFixed(1)}`).join(" ");
+    shape(svg, "path", { class: "la-journey-trace", "data-lane": lane.id, d: trace });
+    const hit = shape(svg, "path", { class: "la-journey-trace-hit", d: trace });
+    hit.addEventListener("click", () => {
+      selectLane(lane.id, true);
+      label.focus({ preventScroll: true });
+    });
+    for (const [grain, position] of [0.11, 0.33, 0.68, 0.9].entries()) {
+      shape(svg, "circle", {
+        class: "la-journey-grain",
+        "data-lane": lane.id,
+        cx: position * sweepWidth + index * 5,
+        cy: trackY(index, position) + (grain % 2 ? -16 : 15),
+        r: grain % 2 ? 1.05 : 1.45
+      });
+    }
+  }
+  const around = journeyDate(today2)?.anchor ?? Date.now();
+  const crossings = data.events.filter((event) => !event.pending && event.lanes.length > 1 && event.start && event.start.from <= around && event.start.through >= around - 184 * 864e5).slice(-3);
+  const crossingsRow = crossings.length ? el(hero, "div", "la-journey-crossings") : void 0;
+  if (crossingsRow) el(crossingsRow, "span", "la-journey-meta", "\u8FD1\u671F\u4EA4\u4F1A");
+  for (const [index, event] of crossings.entries()) {
+    const fraction = 0.48 + index * 0.18;
+    const position = fraction * sweepWidth;
+    const rows = data.lanes.flatMap((lane, row) => event.lanes.includes(lane.id) ? [{ row, lane: lane.id }] : []);
+    const first = trackY(rows[0].row, fraction), last = trackY(rows.at(-1).row, fraction);
+    shape(svg, "line", { class: "la-journey-cross-stem", x1: position, x2: position, y1: first, y2: last });
+    for (const entry of rows) shape(svg, "circle", {
+      class: "la-journey-cross-ring",
+      "data-lane": entry.lane,
+      cx: position,
+      cy: trackY(entry.row, fraction),
+      r: 4
+    });
+    const anchor = control(sweep, "", "journey-crossing", () => pickCrossing(event.id), "la-journey-crossing", `journey-crossing:${event.id}`);
+    anchor.title = `\u4EA4\u4F1A\uFF1A${event.title}`;
+    anchor.setAttribute("aria-label", anchor.title);
+    anchor.style.left = `${fraction * 100}%`;
+    anchor.style.top = `${first / sweepHeight * 100}%`;
+    control(crossingsRow, event.title, "journey-crossing-label", () => pickCrossing(event.id), "la-journey-link", `journey-crossing-label:${event.id}`);
+  }
+  const detail = el(hero, "div", "la-journey-detail");
+  detail.setAttribute("aria-live", "polite");
+  let returnFocus;
+  function pickCrossing(id) {
+    returnFocus = hero.ownerDocument.activeElement?.dataset.focusKey;
+    state.selected = id;
+    state.lane = null;
+    paint();
+  }
+  function selectLane(id, motion = false) {
+    state.lane = state.lane === id ? null : id;
+    state.selected = void 0;
+    returnFocus = id ? `journey-lane:${id}` : returnFocus;
+    hero.dataset.motion = motion ? "on" : "off";
+    paint();
+  }
+  function paint() {
+    const selected = state.selected ? data.nodes.get(state.selected) : void 0;
+    const lane = data.lanes.find((item) => item.id === state.lane);
+    const active = new Set(lane ? [lane.id] : selected?.lanes ?? []);
+    for (const entry of hero.querySelectorAll("[data-lane]")) {
+      const id = entry.getAttribute("data-lane");
+      entry.setAttribute("data-emphasis", active.size ? active.has(id) ? "linked" : "dim" : "normal");
+    }
+    for (const [id, label] of laneControls) label.setAttribute("aria-pressed", String(id === state.lane));
+    detail.replaceChildren();
+    if (!lane && !selected) {
+      el(detail, "p", "la-journey-meta", "\u4ECE\u4EFB\u4E00\u6761\u4E3B\u7EBF\u8FDB\u5165\uFF0C\u6CBF\u65F6\u95F4\u56DE\u770B\u7ECF\u5386\u4E0E\u4EA4\u4F1A\u3002");
+      return;
+    }
+    const bar = el(detail, "div", "la-journey-detail-head");
+    el(bar, "h3", "", selected?.title ?? lane.label);
+    const choices = el(bar, "div", "la-journey-tools");
+    const detailKey = "journey-detail-map";
+    control(choices, "\u5728\u5730\u56FE\u4E2D\u67E5\u770B \u2197", "journey-detail-map", () => run(() => actions.openMap(state.lane, state.selected, detailKey), actions), "la-journey-link", detailKey);
+    control(choices, "\u4E09\u7EBF\u603B\u89C8", "journey-overview", reset, "la-journey-link");
+    if (selected) {
+      nodeInfo(detail, selected, data, actions);
+      return;
+    }
+    if (!lane) return;
+    el(detail, "p", "la-journey-copy", lane.description);
+    if (lane.current) {
+      const heading = el(detail, "h4");
+      noteLink(heading, lane.current.title, lane.current.target, actions, "current:");
+      nodeInfo(detail, lane.current, data, actions);
+    } else {
+      el(detail, "p", "la-journey-meta", lane.currentIssue ? "\u5165\u53E3\u4E2D\u7684\u5F53\u524D\u9879\u4E0D\u53EF\u7528\uFF0C\u53EF\u5728\u539F\u7B14\u8BB0\u4E2D\u6838\u5BF9\u94FE\u63A5\u3002" : "\u5C1A\u672A\u6307\u5B9A\u5F53\u524D\u9879\u3002");
+    }
+    const currentRelated = lane.current ? /* @__PURE__ */ new Set([lane.current.id, ...relatedJourney(data, lane.current.id).map((node) => node.id)]) : /* @__PURE__ */ new Set();
+    const more = [.../* @__PURE__ */ new Set([...lane.chapters, ...lane.related])].filter((id) => !currentRelated.has(id));
+    if (lane.entry || more.length) {
+      const originals = el(detail, "div", "la-journey-related");
+      if (lane.entry) noteLink(originals, `\u6253\u5F00${lane.entry.title} \u2197`, lane.entry, actions, "entry:");
+      for (const id of more) {
+        const event = data.nodes.get(id);
+        if (event) noteLink(originals, `${status(event)} \xB7 ${event.title}`, event.target, actions, "entry-related:");
+      }
+    }
+  }
+  function reset() {
+    const key = returnFocus ?? (state.lane ? `journey-lane:${state.lane}` : mapKey);
+    selectLane(null);
+    restoreFocus(hero, key);
+  }
+  hero.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && (state.lane || state.selected)) {
+      event.preventDefault();
+      reset();
+    }
+  });
+  paint();
+}
+function mountJourneyMap(container, data, state, today2, actions, canvas) {
+  container.replaceChildren();
+  const root = el(container, "main", "la-home la-journey la-map");
+  const head = el(root, "header", "la-map-header");
+  control(head, "\u2039 \u8FD4\u56DE\u4EBA\u751F\u5B58\u6863", "map-back", () => run(actions.back, actions), "la-journey-link");
+  const title = el(head, "h1", "la-map-title", "\u4EBA\u751F\u5730\u56FE");
+  title.tabIndex = -1;
+  title.dataset.focusKey = "map-heading";
+  const toolbar = el(root, "div", "la-map-toolbar");
+  const filters = el(toolbar, "div", "la-map-filters");
+  filters.setAttribute("role", "group");
+  filters.setAttribute("aria-label", "\u6309\u4E3B\u7EBF\u7B5B\u9009");
+  const filterControls = [
+    { id: null, label: "\u4E09\u7EBF\u603B\u89C8" },
+    ...JOURNEY_LANES
+  ].map((lane) => {
+    const entry = control(filters, lane.label, "map-filter", () => {
+      state.lane = lane.id;
+      if (state.selected && lane.id && !data.nodes.get(state.selected)?.lanes.includes(lane.id)) state.selected = void 0;
+      renderBody();
+    }, "la-map-control", `map-filter:${lane.id ?? "all"}`);
+    entry.dataset.lane = lane.id ?? "";
+    return [lane.id, entry];
+  });
+  const viewTools = el(toolbar, "div", "la-journey-tools");
+  const toggle = el(viewTools, "div", "la-map-modes");
+  toggle.setAttribute("role", "group");
+  toggle.setAttribute("aria-label", "\u5730\u56FE\u5448\u73B0\u65B9\u5F0F");
+  const modeControls = ["timeline", "list"].map((mode) => {
+    const entry = control(toggle, mode === "timeline" ? "\u65F6\u95F4\u8F74" : "\u6587\u5B57\u5217\u8868", "map-mode", () => {
+      if (state.mode !== mode) {
+        state.mode = mode;
+        renderBody();
+      }
+    }, "la-map-control", `map-mode:${mode}`);
+    entry.dataset.mode = mode;
+    return [mode, entry];
+  });
+  const now = control(viewTools, "\u5B9A\u4F4D\u73B0\u5728", "map-now", () => {
+    if (view && layout) scrollTo(layout.now);
+  }, "la-journey-link");
+  if (canvas) noteLink(viewTools, "\u539F Canvas", { path: canvas }, actions, "map:");
+  const body = el(root, "div", "la-map-body");
+  const datedContent = el(body, "div", "la-map-content");
+  const detail = el(body, "section", "la-map-detail la-journey-surface");
+  detail.setAttribute("aria-label", "\u8282\u70B9\u8BE6\u60C5");
+  detail.setAttribute("aria-live", "polite");
+  const otherContent = el(body, "div", "la-map-content");
+  let view;
+  let layout;
+  let returnFocus;
+  let edges = [];
+  let markers = [];
+  const branchCounts = /* @__PURE__ */ new Map();
+  for (const branch of data.branches) if (branch.origin) branchCounts.set(branch.origin, (branchCounts.get(branch.origin) ?? 0) + 1);
+  const currentChapters = new Set(data.lanes.flatMap((lane) => lane.current?.id ?? []));
+  const visible = (node) => !state.lane || node.lanes.includes(state.lane);
+  const capture = () => {
+    if (view?.clientWidth && layout) state.anchor = layout.timeAt(view.scrollLeft + view.clientWidth / 2);
+  };
+  function scrollTo(pixel) {
+    if (view) view.scrollLeft = Math.max(0, pixel - view.clientWidth / 2);
+  }
+  function pick(id) {
+    if (id && !data.nodes.has(id)) return;
+    const moveFocus = id && detail.contains(root.ownerDocument.activeElement);
+    if (id && state.selected !== id) {
+      const key = root.ownerDocument.activeElement?.dataset.focusKey;
+      if (key && !key.startsWith("related:")) returnFocus = key;
+    }
+    state.selected = id;
+    paintSelection();
+    if (moveFocus) detail.querySelector("h2")?.focus({ preventScroll: true });
+    if (!id && !restoreFocus(root, returnFocus)) restoreFocus(root, `map-filter:${state.lane ?? "all"}`);
+  }
+  function paintSelection() {
+    const selected = state.selected ? data.nodes.get(state.selected) : void 0;
+    const connected = new Set(selected ? [selected.id, ...relatedJourney(data, selected.id).map((node) => node.id)] : []);
+    for (const marker of markers) {
+      marker.element.dataset.emphasis = selected ? connected.has(marker.node.id) ? "linked" : "dim" : "normal";
+      marker.element.setAttribute("aria-pressed", String(marker.node.id === selected?.id));
+    }
+    for (const edge of edges) {
+      const relevant = edge.nodes.some((id) => connected.has(id));
+      const onLane = !state.lane || edge.nodes.some((id) => data.nodes.get(id)?.lanes.includes(state.lane));
+      edge.element.setAttribute("data-emphasis", onLane ? selected ? relevant ? "linked" : "dim" : "normal" : "dim");
+    }
+    detail.replaceChildren();
+    if (!selected) {
+      el(detail, "p", "la-journey-meta", "\u9009\u62E9\u7AE0\u8282\u3001\u8F6C\u6298\u6216\u652F\u7EBF\uFF0C\u67E5\u770B\u5B83\u4E0E\u5176\u4ED6\u8BB0\u5F55\u7684\u5173\u7CFB\u3002");
+      return;
+    }
+    const row = el(detail, "div", "la-journey-detail-head");
+    el(row, "h2", "", selected.title).tabIndex = -1;
+    control(row, "\u6536\u8D77\u8BE6\u60C5", "map-clear", () => pick(), "la-journey-link");
+    nodeInfo(detail, selected, data, actions, pick);
+  }
+  function nodeButton(parent, node, location, cls, text = node.title) {
+    const entry = control(parent, text, "map-node", () => pick(node.id), cls, `${location}:${node.id}`);
+    entry.dataset.kind = node.kind;
+    entry.dataset.node = node.id;
+    entry.title = `${node.title} \xB7 ${status(node)} \xB7 ${dateLabel(node)}`;
+    entry.setAttribute("aria-label", entry.title);
+    markers.push({ element: entry, node });
+    return entry;
+  }
+  function fold(parent, chapter, location) {
+    const count = branchCounts.get(chapter.id) ?? 0;
+    if (!count) return;
+    const open = state.expanded.has(chapter.id);
+    const entry = control(parent, `${open ? "\u2212" : "+"} ${count} \u6761\u652F\u7EBF`, "map-fold", () => {
+      if (open) state.expanded.delete(chapter.id);
+      else state.expanded.add(chapter.id);
+      renderBody();
+    }, "la-map-fold", `fold:${location}:${chapter.id}`);
+    entry.dataset.chapter = chapter.id;
+    entry.setAttribute("aria-expanded", String(open));
+    entry.setAttribute("aria-label", `${open ? "\u6536\u8D77" : "\u5C55\u5F00"}${chapter.title}\u7684 ${count} \u6761\u652F\u7EBF`);
+  }
+  function renderTimeline() {
+    const timeline = layout = layoutJourney(data, today2, state.expanded);
+    const panel2 = el(datedContent, "div", "la-map-plot la-journey-surface");
+    const chart = el(panel2, "div", "la-map-chart");
+    const trackLabels = el(chart, "div", "la-map-track-labels");
+    trackLabels.setAttribute("aria-hidden", "true");
+    const viewport = view = el(chart, "div", "la-map-scroll");
+    viewport.tabIndex = 0;
+    viewport.dataset.focusKey = "map-viewport";
+    viewport.setAttribute("role", "region");
+    viewport.setAttribute("aria-label", "\u4EBA\u751F\u5730\u56FE\u65F6\u95F4\u8F74\uFF0C\u53EF\u6A2A\u5411\u6EDA\u52A8");
+    const stage = el(viewport, "div", "la-map-stage");
+    stage.style.width = `${timeline.width}px`;
+    stage.style.height = `${timeline.height}px`;
+    const svg = shape(stage, "svg", { width: timeline.width, height: timeline.height, "aria-hidden": "true" });
+    const edge = (tag, type, props, ...nodes) => {
+      const element = shape(svg, tag, { ...props, "data-edge": type, class: `la-map-edge la-map-edge-${type}` });
+      edges.push({ element, nodes });
+      return element;
+    };
+    for (const tick of timeline.ticks) {
+      const label = el(stage, "div", "la-map-tick-label", tick.label);
+      label.style.left = `${tick.x}px`;
+      shape(svg, "line", { x1: tick.x, x2: tick.x, y1: 31, y2: timeline.height - 8, class: "la-map-gridline" });
+    }
+    const todayLabel = el(stage, "div", "la-map-now-label", "\u73B0\u5728");
+    todayLabel.style.left = `${timeline.now}px`;
+    shape(svg, "line", { x1: timeline.now, x2: timeline.now, y1: 49, y2: timeline.height - 8, class: "la-map-now-line" });
+    const rows = new Map(timeline.tracks.map((track) => [track.id, track.y]));
+    for (const track of timeline.tracks) {
+      const label = el(trackLabels, "span", "la-map-lane-label", track.label);
+      label.dataset.lane = track.id;
+      label.style.top = `${track.y}px`;
+      const muted = state.lane && state.lane !== track.id ? "dim" : "normal";
+      label.dataset.emphasis = muted;
+      shape(svg, "line", { x1: 0, x2: timeline.width - 24, y1: track.y, y2: track.y, class: "la-map-rail", "data-lane": track.id, "data-emphasis": muted });
+    }
+    const points = new Map(timeline.points.map((point) => [point.node.id, point]));
+    for (const point of timeline.points) {
+      const { node, x, y, lane } = point;
+      if (node.kind === "chapter") {
+        if (node.start && node.end) edge("line", "chapter", { x1: point.fromX, x2: point.toX, y1: y, y2: y, "data-lane": lane }, node.id);
+        else if (node.start && node.status === "\u6B63\u5F0F" && currentChapters.has(node.id) && timeline.now > x) {
+          edge("line", "ongoing", { x1: x, x2: timeline.now, y1: y, y2: y, "data-lane": lane }, node.id);
+        }
+        const start = node.beginsAt ? points.get(node.beginsAt) : void 0;
+        if (start) edge("line", "start", { x1: start.x, x2: x, y1: rows.get(lane), y2: y, "data-lane": lane }, node.id, start.node.id);
+      } else if (node.kind === "branch") {
+        const origin = node.origin ? points.get(node.origin) : void 0;
+        const startX = origin ? Math.min(point.fromX, origin.toX) : point.fromX;
+        const rail = rows.get(lane);
+        edge("path", "branch", { d: `M${startX} ${rail} C${(startX + x) / 2} ${rail} ${(startX + x) / 2} ${y} ${x} ${y}`, "data-lane": lane }, node.id, node.origin);
+        const turn = node.closesAt ? points.get(node.closesAt) : void 0;
+        if (turn) {
+          const turnY = rows.get(lane);
+          const middle = (x + turn.x) / 2;
+          edge("path", "convergence", { d: `M${x} ${y} C${middle} ${y} ${middle} ${turnY} ${turn.x} ${turnY}`, "data-lane": lane }, node.id, turn.node.id);
+        }
+      } else if (node.lanes.length > 1) {
+        const linkedRows = node.lanes.map((id) => rows.get(id));
+        edge("line", "junction", { x1: x, x2: x, y1: Math.min(...linkedRows), y2: Math.max(...linkedRows) }, node.id);
+        for (const id of node.lanes.slice(1)) edge("circle", "node", { cx: x, cy: rows.get(id), r: 4, "data-lane": id }, node.id);
+      }
+    }
+    const keyRect = (point) => ({ x1: point.x, x2: point.labelX, y1: point.y, y2: point.labelTop });
+    for (const point of timeline.points) {
+      const { node, lane, x, y, labelX, labelTop } = point;
+      const variant = node.kind === "chapter" && node.status === "\u6682\u9898" ? "tentative" : node.kind === "branch" ? node.closesAt ? "closed" : node.status === "\u6682\u505C" ? "paused" : node.status === "\u5DF2\u7ED3\u675F" ? "ended" : "open" : node.kind;
+      edge("line", "leader", keyRect(point), node.id);
+      edge("circle", "node", { cx: x, cy: y, r: node.kind === "turn" ? 5 : 4, "data-lane": lane, "data-variant": variant }, node.id);
+      if (!visible(node)) continue;
+      const label = el(stage, "div", "la-map-point");
+      label.dataset.lane = lane;
+      label.style.left = `${labelX}px`;
+      label.style.top = `${labelTop}px`;
+      label.style.width = `${timelineLabelWidth}px`;
+      const control2 = nodeButton(label, node, "plot", "la-map-point-button");
+      const hitPoints = node.kind === "turn" || node.kind === "experience" ? node.lanes.map((id) => rows.get(id)) : [y];
+      for (const hitY of hitPoints) {
+        const hit = shape(svg, "circle", { cx: x, cy: hitY, r: 9, class: "la-map-point-hit" });
+        hit.addEventListener("click", () => {
+          control2.focus({ preventScroll: true });
+          pick(node.id);
+        });
+      }
+      if (node.kind === "chapter") fold(label, node, "plot");
+      if (node.kind === "branch") el(label, "span", "la-map-point-state", status(node));
+    }
+    el(panel2, "p", "la-map-caption la-journey-meta", timeline.hasDates ? "\u6A2A\u5411\u6EDA\u52A8\u53EF\u56DE\u770B\u65F6\u95F4 \xB7 \u5706\u73AF\u6807\u51FA\u771F\u5B9E\u4EA4\u4F1A\u4E0E\u8F6C\u6298" : "\u6682\u6CA1\u6709\u6CE8\u660E\u65E5\u671F\u7684\u5730\u56FE\u8BB0\u5F55\uFF1B\u4ECD\u53EF\u5728\u4E0B\u65B9\u6253\u5F00\u76F8\u5173\u7B14\u8BB0\u3002");
+    scrollTo(state.anchor === void 0 ? timeline.now : timeline.position(state.anchor));
+  }
+  function renderList(parent, heading, nodes, location) {
+    const section = el(parent, "section", `la-journey-surface la-map-${location}`);
+    el(section, "h2", "", heading);
+    const available = nodes.filter((node) => node.kind !== "branch" || !node.origin || state.expanded.has(node.origin));
+    const lanes = [...JOURNEY_LANES.filter((lane) => !state.lane || lane.id === state.lane), { id: null, label: "\u672A\u5F52\u5C5E\u4E3B\u7EBF" }];
+    for (const lane of lanes) {
+      const groupNodes = available.filter((node) => lane.id ? node.lanes.includes(lane.id) : !node.lanes.length);
+      if (!groupNodes.length) continue;
+      const group = el(section, "div", "la-map-list-group");
+      if (lane.id) group.dataset.lane = lane.id;
+      el(group, "h3", "", lane.label);
+      const list = el(group, "ul", "la-map-records");
+      for (const node of groupNodes) {
+        const row = el(list, "li", "la-map-record");
+        const here = `${location}:${lane.id ?? "unknown"}`;
+        nodeButton(row, node, here, "la-map-record-button");
+        el(row, "span", "la-journey-meta", `${status(node)} \xB7 ${dateLabel(node)}`);
+        if (node.kind === "chapter") fold(row, node, here);
+      }
+    }
+    if (!available.length) el(section, "p", "la-journey-meta", nodes.length ? "\u5C55\u5F00\u8D77\u70B9\u7AE0\u8282\u53EF\u67E5\u770B\u8FD9\u91CC\u7684\u652F\u7EBF\u3002" : "\u8FD9\u4E2A\u8303\u56F4\u8FD8\u6CA1\u6709\u53EF\u663E\u793A\u7684\u7B14\u8BB0\u3002");
+  }
+  function renderBody() {
+    capture();
+    const active = root.ownerDocument.activeElement;
+    const focus = active && root.contains(active) ? active.dataset.focusKey : void 0;
+    for (const [id, entry] of filterControls) entry.setAttribute("aria-pressed", String(id === state.lane));
+    for (const [mode, entry] of modeControls) entry.setAttribute("aria-pressed", String(mode === state.mode));
+    now.hidden = state.mode !== "timeline";
+    datedContent.replaceChildren();
+    otherContent.replaceChildren();
+    view = void 0;
+    layout = void 0;
+    edges = [];
+    markers = [];
+    const nodes = [...data.nodes.values()].filter(visible).sort(compareJourney);
+    const dated = nodes.filter(onTimeline);
+    if (state.mode === "timeline") renderTimeline();
+    else renderList(datedContent, "\u6309\u7AE0\u8282\u4E0E\u65E5\u671F", dated, "list");
+    const undated = nodes.filter((node) => !onTimeline(node));
+    if (undated.length) renderList(otherContent, "\u672A\u4E0A\u65F6\u95F4\u8F74", undated, "undated");
+    if (data.issues.length) {
+      const issues = el(otherContent, "details", "la-map-issues la-journey-surface");
+      el(issues, "summary", "", `\u53EF\u6838\u5BF9\u7684\u5C5E\u6027 \xB7 ${data.issues.length}`);
+      for (const issue of data.issues) {
+        const line = el(issues, "p", "la-journey-meta");
+        noteLink(line, issue.path.split("/").at(-1).replace(/\.md$/, ""), { path: issue.path }, actions, "issue:");
+        line.append(` \xB7 ${issue.message}`);
+      }
+    }
+    paintSelection();
+    if (focus && !restoreFocus(root, focus)) restoreFocus(root, `map-filter:${state.lane ?? "all"}`);
+  }
+  root.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && state.selected) {
+      event.preventDefault();
+      pick();
+    }
+  });
+  renderBody();
+  return capture;
+}
+
 // src/ui/home.ts
-function renderSyncState(container, status) {
+function renderSyncState(container, status2) {
   const button2 = container.querySelector('[data-action="sync-github"]');
   if (!button2) return;
-  const label = status.state === "error" ? `GitHub \u540C\u6B65\u5931\u8D25\uFF1A${status.message}` : { idle: "\u7ACB\u5373\u540C\u6B65 GitHub", running: "\u6B63\u5728\u540C\u6B65 GitHub", success: "GitHub \u540C\u6B65\u5B8C\u6210" }[status.state];
-  button2.dataset.syncState = status.state;
+  const label = status2.state === "error" ? `GitHub \u540C\u6B65\u5931\u8D25\uFF1A${status2.message}` : { idle: "\u7ACB\u5373\u540C\u6B65 GitHub", running: "\u6B63\u5728\u540C\u6B65 GitHub", success: "GitHub \u540C\u6B65\u5B8C\u6210" }[status2.state];
+  button2.dataset.syncState = status2.state;
   button2.title = label;
   button2.setAttribute("aria-label", label);
   const live = container.querySelector(".la-sync-status");
-  if (live) live.textContent = status.state === "idle" ? "" : label;
+  if (live) live.textContent = status2.state === "idle" ? "" : label;
 }
 function basename(path) {
   return path.split("/").at(-1).replace(/\.md$/, "");
@@ -9078,6 +10013,13 @@ function mountHome(container, model, actions) {
   const sync = button(topActions, "", "sync-github", "la-secondary la-sync-button", "\u7ACB\u5373\u540C\u6B65 GitHub");
   sync.title = "\u7ACB\u5373\u540C\u6B65 GitHub";
   el(topActions, "span", "la-sync-status").setAttribute("role", "status");
+  if (model.journey && actions.openMap) {
+    mountJourneyHome(root, model.journey.data, model.journey.state, model.today, {
+      openMap: actions.openMap,
+      openNote: actions.openFile,
+      error: actions.error
+    }, model.journey.canvas);
+  }
   renderAttributes(root, model.review);
   const hasPeriod = (period) => periodNotePaths(period).some((path) => model.paths.has(path));
   const grid = el(root, "div", "la-main-grid");
@@ -9106,7 +10048,7 @@ function mountHome(container, model, actions) {
   else renderPeriodCalendar(calendar, mode, periodYear, Number(model.today.slice(0, 4)), hasPeriod);
   const overview = el(grid, "div", "la-overview");
   renderReviewSummary(overview, model.review);
-  renderChapter(overview, model.chapter);
+  if (!model.journey?.data.configured) renderChapter(overview, model.chapter);
   const notes = el(root, "section", "la-recent-notes");
   notes.setAttribute("aria-label", "\u8FD1\u671F\u8BB0\u5F55");
   const { card: articles, header: articlesHeader } = panel(notes, "\u8FD1\u671F\u601D\u60F3");
@@ -9406,6 +10348,15 @@ var HomeView = class extends import_obsidian3.ItemView {
   pendingFocusDate;
   dependencies = /* @__PURE__ */ new Set();
   pendingDependencies;
+  showingMap = false;
+  surface = "home";
+  journeyHome = { lane: null };
+  journeyMap = { lane: null, mode: "timeline", expanded: /* @__PURE__ */ new Set() };
+  homeScroll = 0;
+  mapScroll = 0;
+  homeReturnFocus = "journey-map";
+  pendingSurfaceFocus;
+  captureTime;
   getViewType() {
     return HOME_VIEW;
   }
@@ -9427,10 +10378,35 @@ var HomeView = class extends import_obsidian3.ItemView {
   references(path) {
     return this.dependencies.has(path) || (this.pendingDependencies?.has(path) ?? false);
   }
-  updateSyncState(status) {
-    renderSyncState(this.contentEl, status);
+  followJourneyRename(oldPath, newPath) {
+    for (const state of [this.journeyHome, this.journeyMap]) {
+      if (state.selected) state.selected = relocateJourneyKey(state.selected, oldPath, newPath);
+    }
+    this.journeyMap.expanded = new Set([...this.journeyMap.expanded].map((key) => relocateJourneyKey(key, oldPath, newPath)));
+  }
+  async openJourneyMap(lane = null, selected, source = "journey-map", anchor) {
+    if (this.showingMap) return;
+    this.homeScroll = this.contentEl.scrollTop;
+    this.homeReturnFocus = source;
+    this.journeyMap.lane = lane;
+    this.journeyMap.selected = selected;
+    if (anchor !== void 0) this.journeyMap.anchor = anchor;
+    this.showingMap = true;
+    this.pendingSurfaceFocus = "map-heading";
+    this.pendingFocusDate = void 0;
+    await this.refresh();
+  }
+  async showHome() {
+    if (!this.showingMap) return;
+    this.mapScroll = this.contentEl.scrollTop;
+    this.showingMap = false;
+    this.pendingSurfaceFocus = this.homeReturnFocus;
+    await this.refresh();
+  }
+  updateSyncState(status2) {
+    renderSyncState(this.contentEl, status2);
     const button2 = this.contentEl.querySelector('[data-action="sync-github"]');
-    if (button2) (0, import_obsidian3.setIcon)(button2, status.state === "success" ? "check" : status.state === "error" ? "x" : "refresh-cw");
+    if (button2) (0, import_obsidian3.setIcon)(button2, status2.state === "success" ? "check" : status2.state === "error" ? "x" : "refresh-cw");
   }
   async changeMonth(month, focusDate) {
     assertMonth(month);
@@ -9438,6 +10414,19 @@ var HomeView = class extends import_obsidian3.ItemView {
     this.selectedDate = void 0;
     this.pendingFocusDate = focusDate;
     await this.refresh();
+  }
+  activeKey() {
+    const active = this.contentEl.ownerDocument.activeElement;
+    return active && this.contentEl.contains(active) ? focusIdentity(active) : void 0;
+  }
+  restoreFocus(key, fallback) {
+    if (!key) return;
+    const replacement = Array.from(this.contentEl.querySelectorAll("[data-action], [data-focus-key]")).find((el2) => focusIdentity(el2) === key && !el2.matches(":disabled") && !el2.closest("[hidden]"));
+    if (replacement?.dataset.action === "day") {
+      this.contentEl.querySelector('[data-action="day"][tabindex="0"]')?.setAttribute("tabindex", "-1");
+      replacement.tabIndex = 0;
+    }
+    (replacement ?? this.contentEl.querySelector(fallback))?.focus({ preventScroll: true });
   }
   async refresh(requestedFocusDate) {
     if (requestedFocusDate) this.pendingFocusDate = requestedFocusDate;
@@ -9447,17 +10436,35 @@ var HomeView = class extends import_obsidian3.ItemView {
     const calendar = { date: selectedDate, filter: this.habitFilter };
     const { config, port, habits } = this.plugin;
     const dependencies = this.pendingDependencies = /* @__PURE__ */ new Set();
+    const journey = port.journey(this.showingMap, dependencies, currentDay);
+    const canvas = config.lifeMapPath && port.get(config.lifeMapPath)?.kind === "file" ? config.lifeMapPath : void 0;
+    if (this.showingMap) {
+      const scroll2 = this.surface === "map" ? this.contentEl.scrollTop : this.mapScroll;
+      const focus = this.pendingSurfaceFocus ?? this.activeKey();
+      this.pendingSurfaceFocus = void 0;
+      this.captureTime?.();
+      this.dispose?.();
+      this.dispose = void 0;
+      this.dependencies = dependencies;
+      this.pendingDependencies = void 0;
+      this.captureTime = mountJourneyMap(this.contentEl, journey, this.journeyMap, currentDay, {
+        back: () => this.showHome(),
+        openNote: (path, subpath) => port.open(path, subpath),
+        error: (message) => new import_obsidian3.Notice(message)
+      }, canvas);
+      this.surface = "map";
+      this.contentEl.scrollTop = scroll2;
+      this.restoreFocus(focus, ".la-map-title");
+      return;
+    }
     const resolveNote = (target, origin) => port.resolveNote(target, origin, dependencies);
     const vault = { read: (path) => port.read(path), get: (path) => port.get(path), resolveNote };
     const habitData = habits.read().then(
       (data) => ({ data }),
       (error) => ({ error: error instanceof Error ? error.message : String(error) })
     );
-    const [habitState, review, chapter] = await Promise.all([
-      habitData,
-      loadReviewOverview(port.reviewPaths(), vault, currentDay),
-      loadChapterOverview(config, vault)
-    ]);
+    const chapterData = journey.configured ? { chapter: "unconfigured", map: canvas ? { path: canvas } : "unconfigured" } : loadChapterOverview(config, vault);
+    const [habitState, review, chapter] = await Promise.all([habitData, loadReviewOverview(port.reviewPaths(), vault, currentDay), chapterData]);
     if (version !== this.renderVersion) return;
     this.dependencies = dependencies;
     this.pendingDependencies = void 0;
@@ -9466,9 +10473,11 @@ var HomeView = class extends import_obsidian3.ItemView {
     if (habitState.data && !habitState.data.habits.some((habit) => habit.id === calendar.filter)) {
       this.habitFilter = calendar.filter = "";
     }
-    const scroll = this.contentEl.scrollTop;
-    const active = this.contentEl.ownerDocument.activeElement;
-    const previous = active && this.contentEl.contains(active) ? focusIdentity(active) : void 0;
+    const scroll = this.surface === "home" ? this.contentEl.scrollTop : this.homeScroll;
+    const previous = this.pendingSurfaceFocus ?? this.activeKey();
+    this.pendingSurfaceFocus = void 0;
+    this.captureTime?.();
+    this.captureTime = void 0;
     this.dispose?.();
     this.dispose = mountHome(this.contentEl, {
       today: currentDay,
@@ -9481,7 +10490,8 @@ var HomeView = class extends import_obsidian3.ItemView {
       periodYear: this.periodYear ?? Number(this.month.slice(0, 4)),
       calendar: { ...calendar, ...habitState },
       review,
-      chapter
+      chapter,
+      journey: { data: journey, state: this.journeyHome, canvas }
     }, {
       openPeriod: (kind, date) => this.plugin.notes.openPeriod(kind, date),
       openThought: () => this.plugin.newThought(),
@@ -9517,22 +10527,17 @@ var HomeView = class extends import_obsidian3.ItemView {
       }).open(),
       syncGitHub: () => this.plugin.syncGitHub(true),
       openFile: (path, subpath) => port.open(path, subpath),
+      openMap: (lane, selected, source) => this.openJourneyMap(lane, selected, source, selected ? journey.nodes.get(selected)?.start?.anchor : void 0),
       changeMonth: (month, date) => this.changeMonth(month, date),
       browse: (kind) => this.plugin.browse(kind),
       settings: () => this.plugin.openSettings(),
       help: () => this.plugin.help(),
       error: (message) => new import_obsidian3.Notice(message)
     });
+    this.surface = "home";
     this.updateSyncState(this.plugin.syncState);
     this.contentEl.scrollTop = scroll;
-    if (!focusDate && previous) {
-      const replacement = Array.from(this.contentEl.querySelectorAll("[data-action]")).find((el2) => focusIdentity(el2) === previous && !el2.matches(":disabled"));
-      if (replacement?.dataset.action === "day") {
-        this.contentEl.querySelector('[data-action="day"][tabindex="0"]')?.setAttribute("tabindex", "-1");
-        replacement.tabIndex = 0;
-      }
-      (replacement ?? this.contentEl.querySelector(".la-home"))?.focus({ preventScroll: true });
-    }
+    if (!focusDate) this.restoreFocus(previous, ".la-home");
   }
 };
 
@@ -9647,9 +10652,9 @@ function registerWritingGuide(plugin) {
   const open = async (path) => {
     let leaf = workspace.getLeavesOfType(VIEW_TYPE)[0];
     if (!leaf) {
-      const right = workspace.getRightLeaf(false);
-      if (!right) return;
-      leaf = right;
+      const right2 = workspace.getRightLeaf(false);
+      if (!right2) return;
+      leaf = right2;
       await leaf.setViewState({ type: VIEW_TYPE });
     }
     await workspace.revealLeaf(leaf);
@@ -9771,26 +10776,27 @@ var ArchiveSettings = class extends import_obsidian6.PluginSettingTab {
     root.createEl("h3", { text: "\u7B14\u8BB0\u76EE\u5F55" });
     new import_obsidian6.Setting(root).setName("\u5468\u671F\u7B14\u8BB0").setDesc("\u6309\u5E74\u4EFD\u5B58\u653E\u4E8E \u5468\u671F\u7B14\u8BB0\u3002\u65E5\u7B14\u8BB0\u518D\u6309\u6708\u4EFD\u5F52\u6863\u3002");
     const names = { thoughts: "\u601D\u60F3\u6587\u7AE0", templates: "\u6A21\u677F\u76EE\u5F55" };
-    for (const kind of Object.keys(names)) new import_obsidian6.Setting(root).setName(names[kind]).addText((t) => t.setValue(draft.paths[kind]).onChange((value) => {
+    for (const kind of Object.keys(names)) new import_obsidian6.Setting(root).setName(names[kind]).addText((t) => t.setValue(draft.paths[kind]).onChange((value2) => {
       const old = draft.paths[kind];
-      draft.paths[kind] = value;
+      draft.paths[kind] = value2;
       if (kind === "templates") for (const templateKind of Object.keys(draft.templates)) {
-        if (draft.templates[templateKind].startsWith(`${old}/`)) draft.templates[templateKind] = `${value}/${draft.templates[templateKind].slice(old.length + 1)}`;
+        if (draft.templates[templateKind].startsWith(`${old}/`)) draft.templates[templateKind] = `${value2}/${draft.templates[templateKind].slice(old.length + 1)}`;
       }
     }));
     root.createEl("p", { text: "\u4FEE\u6539\u76EE\u5F55\u4E0D\u4F1A\u642C\u52A8\u5DF2\u6709\u7B14\u8BB0\uFF1B\u8BF7\u5148\u5728 Obsidian \u4E2D\u79FB\u52A8\u9700\u8981\u8FC1\u79FB\u7684\u5185\u5BB9\u3002\u4E0D\u540C\u7528\u9014\u7684\u76EE\u5F55\u4E0D\u80FD\u76F8\u4E92\u5305\u542B\u3002", cls: "setting-item-description" });
     root.createEl("h3", { text: "\u7B14\u8BB0\u6A21\u677F" });
-    for (const kind of Object.keys(TEMPLATE_NAMES)) new import_obsidian6.Setting(root).setName(kind === "thought" ? TEMPLATE_NAMES.thought : PERIOD_LABELS[kind]).addText((t) => t.setValue(draft.templates[kind]).onChange((value) => {
-      draft.templates[kind] = value;
+    for (const kind of Object.keys(TEMPLATE_NAMES)) new import_obsidian6.Setting(root).setName(kind === "thought" ? TEMPLATE_NAMES.thought : PERIOD_LABELS[kind]).addText((t) => t.setValue(draft.templates[kind]).onChange((value2) => {
+      draft.templates[kind] = value2;
     }));
     root.createEl("p", { text: "\u652F\u6301 {{date}}\u3001{{title}}\u3001{{period}}\u3001{{start}}\u3001{{end}}\u3001{{monthNote}}\u3002\u6A21\u677F\u4FDD\u5B58\u5728\u7B14\u8BB0\u5E93\u4E2D\uFF0C\u53EF\u76F4\u63A5\u7F16\u8F91\u3002", cls: "setting-item-description" });
     root.createEl("h3", { text: "\u5F53\u524D\u7AE0\u8282\u4E0E\u4EBA\u751F\u5730\u56FE" });
+    root.createEl("p", { text: "\u5728\u300C\u4EBA\u751F\u4E3B\u7EBF\u300D\u7684\u5165\u53E3\u7B14\u8BB0\u91CC\u7F16\u8F91\u5F53\u524D\u9879\u3002\u4E0B\u65B9\u4FDD\u7559\u65E7\u7AE0\u8282\u56DE\u9000\u548C\u624B\u7ED8\u5730\u56FE\u5165\u53E3\u3002", cls: "setting-item-description" });
     for (const [key, label, extension] of [
-      ["currentChapterPath", "\u5F53\u524D\u7AE0\u8282", "md"],
-      ["lifeMapPath", "\u4EBA\u751F\u5730\u56FE", "canvas"]
+      ["currentChapterPath", "\u56DE\u9000\u7AE0\u8282", "md"],
+      ["lifeMapPath", "\u539F Canvas \u5730\u56FE", "canvas"]
     ]) {
       const setting = new import_obsidian6.Setting(root).setName(label).setDesc(configured[key] || "\u5C1A\u672A\u9009\u62E9");
-      setting.addButton((control) => control.setButtonText("\u9009\u62E9\u6587\u4EF6").onClick(() => {
+      setting.addButton((control2) => control2.setButtonText("\u9009\u62E9\u6587\u4EF6").onClick(() => {
         const files = this.app.vault.getFiles().filter((file) => file.extension === extension).sort((a, b) => a.path.localeCompare(b.path, "zh-CN"));
         new NotesModal(this.app, files, "\u9009\u62E9" + label + "\u2026", async (path) => {
           const file = this.app.vault.getFileByPath(path);
@@ -9799,14 +10805,14 @@ var ArchiveSettings = class extends import_obsidian6.PluginSettingTab {
           setting.setDesc(path);
         }).open();
       }));
-      setting.addButton((control) => control.setButtonText("\u6E05\u9664").onClick(() => {
+      setting.addButton((control2) => control2.setButtonText("\u6E05\u9664").onClick(() => {
         selected.set(key, null);
         setting.setDesc("\u5C1A\u672A\u9009\u62E9");
       }));
     }
     root.createEl("h3", { text: "GitHub \u540C\u6B65" });
-    new import_obsidian6.Setting(root).setName("\u79C1\u6709\u4ED3\u5E93\u514B\u9686\u5730\u5740").setDesc("\u6253\u5F00 Vault \u65F6\u540C\u6B65\uFF0C\u4FDD\u5B58\u540E\u7B49\u5F85 30 \u79D2\u5408\u5E76\u540C\u6B65\u3002\u7559\u7A7A\u53EF\u505C\u7528\u3002").addText((t) => t.setValue(draft.githubRemote).onChange((value) => {
-      draft.githubRemote = value.trim();
+    new import_obsidian6.Setting(root).setName("\u79C1\u6709\u4ED3\u5E93\u514B\u9686\u5730\u5740").setDesc("\u6253\u5F00 Vault \u65F6\u540C\u6B65\uFF0C\u4FDD\u5B58\u540E\u7B49\u5F85 30 \u79D2\u5408\u5E76\u540C\u6B65\u3002\u7559\u7A7A\u53EF\u505C\u7528\u3002").addText((t) => t.setValue(draft.githubRemote).onChange((value2) => {
+      draft.githubRemote = value2.trim();
     }));
     root.createEl("h3", { text: "\u4FDD\u5B58" });
     new import_obsidian6.Setting(root).setName("\u4FDD\u5B58\u8BBE\u7F6E").setDesc("\u6821\u9A8C\u8DEF\u5F84\u540E\u751F\u6548\uFF1B\u65B0\u76EE\u5F55\u4E0E\u7F3A\u5931\u6A21\u677F\u4F1A\u81EA\u52A8\u8865\u9F50\uFF0C\u5DF2\u6709\u6587\u4EF6\u4FDD\u7559\u3002").addButton((b) => b.setButtonText("\u4FDD\u5B58\u8BBE\u7F6E").setCta().onClick(async () => {
@@ -9955,6 +10961,9 @@ var LifeArchive = class extends import_obsidian7.Plugin {
     this.addCommand({ id: "open-home", name: "\u6253\u5F00\u4EBA\u751F\u5B58\u6863", callback: () => {
       void this.openHome();
     } });
+    this.addCommand({ id: "open-journey-map", name: "\u6253\u5F00\u4EBA\u751F\u5730\u56FE", callback: () => {
+      void this.openHome("map").catch((error) => new import_obsidian7.Notice(error.message));
+    } });
     this.addCommand({ id: "sync-github", name: "\u7ACB\u5373\u540C\u6B65 GitHub", callback: () => {
       void this.syncGitHub(true);
     } });
@@ -9971,7 +10980,7 @@ var LifeArchive = class extends import_obsidian7.Plugin {
       if (params.action === "period" && PERIOD_KINDS.includes(params.kind)) await this.notes.openPeriod(params.kind, params.date || today()).catch((e) => new import_obsidian7.Notice(e.message));
       else await this.openHome();
     });
-    const isOverviewPath = (path) => path === HABIT_PATH || path === REVIEW_FOLDER || isWithin(path, REVIEW_FOLDER) || path === this.config.currentChapterPath || path === this.config.lifeMapPath;
+    const isOverviewPath = (path) => path === HABIT_PATH || path === REVIEW_FOLDER || isWithin(path, REVIEW_FOLDER) || path === this.config.currentChapterPath || path === this.config.lifeMapPath || path === JOURNEY_ROOT || isWithin(path, JOURNEY_ROOT);
     const isMarkdown = (file) => file instanceof import_obsidian7.TFile && file.extension === "md";
     const update = (file) => {
       if (isMarkdown(file)) this.index.upsert(this.port.entry(file));
@@ -9992,6 +11001,7 @@ var LifeArchive = class extends import_obsidian7.Plugin {
       this.index.remove(oldPath);
       if (file instanceof import_obsidian7.TFolder) this.rebuildIndex();
       this.followRenamedFiles(oldPath, file.path);
+      for (const leaf of this.app.workspace.getLeavesOfType(HOME_VIEW)) if (leaf.view instanceof HomeView) leaf.view.followJourneyRename(oldPath, file.path);
       update(file);
       if (isOverviewPath(oldPath) || oldPath.endsWith(".md") || isMarkdown(file) || file instanceof import_obsidian7.TFolder) this.requestRefresh();
     }));
@@ -10003,15 +11013,15 @@ var LifeArchive = class extends import_obsidian7.Plugin {
     this.registerEvent(this.app.metadataCache.on("resolve", (file) => {
       if (isOverviewPath(file.path)) this.requestRefresh();
     }));
-    const status = this.addStatusBarItem();
-    status.setText("\u4EBA\u751F\u5B58\u6863");
-    status.addClass("la-status-button");
-    status.setAttribute("role", "button");
-    status.tabIndex = 0;
-    this.registerDomEvent(status, "click", () => {
+    const status2 = this.addStatusBarItem();
+    status2.setText("\u4EBA\u751F\u5B58\u6863");
+    status2.addClass("la-status-button");
+    status2.setAttribute("role", "button");
+    status2.tabIndex = 0;
+    this.registerDomEvent(status2, "click", () => {
       void this.openHome();
     });
-    this.registerDomEvent(status, "keydown", (event) => {
+    this.registerDomEvent(status2, "keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         void this.openHome();
@@ -10048,14 +11058,14 @@ var LifeArchive = class extends import_obsidian7.Plugin {
     window.clearTimeout(this.syncFeedbackTimer);
     for (const leaf of this.app.workspace.getLeavesOfType(HOME_VIEW)) leaf.detach();
   }
-  setSyncState(status) {
+  setSyncState(status2) {
     window.clearTimeout(this.syncFeedbackTimer);
-    this.syncState = status;
+    this.syncState = status2;
     for (const leaf of this.app.workspace.getLeavesOfType(HOME_VIEW)) {
-      if (leaf.view instanceof HomeView) leaf.view.updateSyncState(status);
+      if (leaf.view instanceof HomeView) leaf.view.updateSyncState(status2);
     }
-    if (status.state === "success" || status.state === "error") {
-      this.syncFeedbackTimer = window.setTimeout(() => this.setSyncState({ state: "idle" }), status.state === "error" ? 3500 : 1800);
+    if (status2.state === "success" || status2.state === "error") {
+      this.syncFeedbackTimer = window.setTimeout(() => this.setSyncState({ state: "idle" }), status2.state === "error" ? 3500 : 1800);
     }
   }
   scheduleGitHubSync() {
@@ -10090,13 +11100,17 @@ var LifeArchive = class extends import_obsidian7.Plugin {
       this.syncJob = void 0;
     }
   }
-  async openHome() {
+  async openHome(surface = "home") {
     let leaf = this.app.workspace.getLeavesOfType(HOME_VIEW)[0];
     if (!leaf) {
       leaf = this.app.workspace.getLeaf("tab");
       await leaf.setViewState({ type: HOME_VIEW, active: true });
     }
     await this.app.workspace.revealLeaf(leaf);
+    if (leaf.view instanceof HomeView) {
+      if (surface === "map") await leaf.view.openJourneyMap();
+      else await leaf.view.showHome();
+    }
   }
   allPaths() {
     return this.index.allPaths();
@@ -10130,9 +11144,9 @@ var LifeArchive = class extends import_obsidian7.Plugin {
       this.requestRefresh();
     }).catch(() => new import_obsidian7.Notice("\u65E0\u6CD5\u66F4\u65B0\u4EBA\u751F\u5730\u56FE\u8BBE\u7F6E\uFF0C\u8BF7\u91CD\u65B0\u9009\u62E9\u5DF2\u79FB\u52A8\u7684\u6587\u4EF6\u3002"));
   }
-  updateConfig(value) {
+  updateConfig(value2) {
     return this.queueConfigWrite(async () => {
-      const config = loadConfig({ ...this.config, ...value }), notes = new NoteService(config, this.port);
+      const config = loadConfig({ ...this.config, ...value2 }), notes = new NoteService(config, this.port);
       await notes.initialize();
       await this.saveData(config);
       this.config = config;

@@ -4,6 +4,22 @@
     "cssclasses": "multitext",
     "tags": "tags",
     "ai": "multitext",
-    "date": "date"
+    "date": "date",
+    "存档类型": "text",
+    "主线": "multitext",
+    "当前项": "text",
+    "章节状态": "text",
+    "章序": "number",
+    "起点章节": "text",
+    "起点转折": "text",
+    "支线状态": "text",
+    "收束转折": "text",
+    "开始日期": "text",
+    "结束日期": "text",
+    "发生日期": "text",
+    "关联章节": "multitext",
+    "关联支线": "multitext",
+    "关联经历": "multitext",
+    "关联决策": "multitext"
   }
 }
