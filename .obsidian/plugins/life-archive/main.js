@@ -830,6 +830,12 @@ function decode(content) {
     throw new Error(`\u65E0\u6CD5\u8BFB\u53D6\u300C${HABIT_PATH}\u300D\uFF0C\u8BF7\u68C0\u67E5\u6587\u4EF6\u683C\u5F0F\u3002`);
   }
 }
+function validateHabitName(name, habits, ownId) {
+  const title = name.trim();
+  if (!title || title.length > 32) throw new Error("\u8BF7\u8F93\u5165 1\u201332 \u4E2A\u5B57\u7B26\u7684\u4E60\u60EF\u540D\u79F0\u3002");
+  if (habits.some((habit) => habit.id !== ownId && habit.name === title)) throw new Error("\u8FD9\u4E2A\u4E60\u60EF\u5DF2\u5B58\u5728\u3002");
+  return title;
+}
 var HabitStore = class {
   constructor(port) {
     this.port = port;
@@ -851,10 +857,15 @@ var HabitStore = class {
   }
   add(name) {
     return this.update((data) => {
-      const title = name.trim();
-      if (!title || title.length > 32) throw new Error("\u8BF7\u8F93\u5165 1\u201332 \u4E2A\u5B57\u7B26\u7684\u4E60\u60EF\u540D\u79F0\u3002");
-      if (data.habits.some((habit) => habit.name === title)) throw new Error("\u8FD9\u4E2A\u4E60\u60EF\u5DF2\u5B58\u5728\u3002");
+      const title = validateHabitName(name, data.habits);
       data.habits.push({ id: crypto.randomUUID(), name: title });
+    });
+  }
+  rename(id, name) {
+    return this.update((data) => {
+      const habit = data.habits.find((habit2) => habit2.id === id);
+      if (!habit) throw new Error("\u627E\u4E0D\u5230\u8FD9\u4E2A\u4E60\u60EF\u3002");
+      habit.name = validateHabitName(name, data.habits, id);
     });
   }
   toggle(id, date, today2) {
@@ -1505,36 +1516,55 @@ var ThoughtModal = class extends import_obsidian2.Modal {
   }
 };
 var HabitModal = class extends import_obsidian2.Modal {
-  constructor(app, habits, add) {
+  constructor(app, habits, save) {
     super(app);
     this.habits = habits;
-    this.add = add;
+    this.save = save;
   }
   onOpen() {
     this.titleEl.setText("\u7BA1\u7406\u4E60\u60EF");
-    if (this.habits.length) {
-      const list = this.contentEl.createEl("ul");
-      for (const habit of this.habits) list.createEl("li", { text: habit.name });
-    }
+    const list = this.contentEl.createDiv();
     const form = this.contentEl.createEl("form");
     const input = form.createEl("input", { type: "text", placeholder: "\u4F8B\u5982\uFF1A\u9605\u8BFB", cls: "la-title-input" });
-    input.setAttribute("aria-label", "\u65B0\u4E60\u60EF\u540D\u79F0");
     input.required = true;
     input.maxLength = 32;
     const error = form.createEl("p", { cls: "la-error" });
     error.setAttribute("role", "alert");
-    const submit = form.createEl("button", { text: "\u6DFB\u52A0\u4E60\u60EF", cls: "mod-cta", attr: { type: "submit" } });
+    const controls = form.createDiv({ cls: "modal-button-container" });
+    const submit = controls.createEl("button", { text: "\u6DFB\u52A0\u4E60\u60EF", cls: "mod-cta", attr: { type: "submit" } });
+    const cancel = controls.createEl("button", { text: "\u53D6\u6D88\u7F16\u8F91", attr: { type: "button" } });
+    let editingId;
+    const chooseHabit = (habit) => {
+      if (submit.disabled) return;
+      editingId = habit?.id;
+      input.value = habit?.name ?? "";
+      input.setAttribute("aria-label", habit ? "\u7F16\u8F91\u4E60\u60EF\u540D\u79F0" : "\u65B0\u4E60\u60EF\u540D\u79F0");
+      submit.setText(habit ? "\u4FDD\u5B58\u4FEE\u6539" : "\u6DFB\u52A0\u4E60\u60EF");
+      cancel.toggle(Boolean(habit));
+      error.empty();
+      input.focus();
+      if (habit) input.select();
+    };
+    for (const habit of this.habits) {
+      new import_obsidian2.Setting(list).setName(habit.name).addButton((edit) => {
+        edit.setButtonText("\u7F16\u8F91");
+        edit.buttonEl.setAttribute("aria-label", `\u7F16\u8F91${habit.name}`);
+        edit.onClick(() => chooseHabit(habit));
+      });
+    }
+    cancel.addEventListener("click", () => chooseHabit());
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       if (submit.disabled) return;
       submit.disabled = true;
-      void this.add(input.value).then(() => this.close(), (cause) => {
-        error.setText(cause instanceof Error ? cause.message : "\u6DFB\u52A0\u5931\u8D25");
+      error.empty();
+      void this.save(input.value, editingId).then(() => this.close(), (cause) => {
+        error.setText(cause instanceof Error ? cause.message : "\u4FDD\u5B58\u5931\u8D25");
         submit.disabled = false;
         input.focus();
       });
     });
-    input.focus();
+    chooseHabit();
   }
   onClose() {
     this.contentEl.empty();
@@ -1564,7 +1594,7 @@ var HelpModal = class extends import_obsidian2.Modal {
     const content = this.contentEl;
     const steps = [
       ["\u6253\u5F00\u5468\u671F\u7B14\u8BB0", "\u70B9\u51FB\u65E5\u671F\u67E5\u770B\u5F53\u5929\u8BE6\u60C5\uFF0C\u518D\u70B9\u300C\u65B0\u5EFA\u65E5\u8BB0\u300D\u6216\u300C\u6253\u5F00\u65E5\u8BB0\u300D\u3002\u5468\u7B14\u8BB0\u4ECE\u5468\u53F7\u6253\u5F00\uFF0C\u901A\u8FC7\u300C\u6708\uFF0F\u5B63\uFF0F\u5E74\u300D\u6D4F\u89C8\u5E76\u6253\u5F00\u6216\u521B\u5EFA\u5BF9\u5E94\u7684\u7B14\u8BB0\u3002"],
-      ["\u4E60\u60EF\u6253\u5361", "\u4ECE\u8BB0\u5F55\u65E5\u5386\u7684\u300C\u7BA1\u7406\u4E60\u60EF\u300D\u6DFB\u52A0\u4E60\u60EF\u3002\u70B9\u51FB\u65E5\u5386\u4E2D\u7684\u65E5\u671F\uFF0C\u5728\u5F53\u5929\u8BE6\u60C5\u4E2D\u52FE\u9009\u3001\u8865\u6253\u5361\u6216\u64A4\u9500\u3002"],
+      ["\u4E60\u60EF\u6253\u5361", "\u4ECE\u8BB0\u5F55\u65E5\u5386\u7684\u300C\u7BA1\u7406\u4E60\u60EF\u300D\u6DFB\u52A0\u4E60\u60EF\u6216\u7F16\u8F91\u540D\u79F0\u3002\u70B9\u51FB\u65E5\u5386\u4E2D\u7684\u65E5\u671F\uFF0C\u5728\u5F53\u5929\u8BE6\u60C5\u4E2D\u52FE\u9009\u3001\u8865\u6253\u5361\u6216\u64A4\u9500\u3002"],
       ["\u7559\u4F4F\u601D\u60F3", "\u70B9\u51FB\u300C\u65B0\u5EFA\u601D\u60F3\u6587\u7AE0\u300D\uFF0C\u8F93\u5165\u6807\u9898\u540E\u7EE7\u7EED\u5728 Obsidian \u4E2D\u5199\u4F5C\u3002"],
       ["\u5199\u4F5C\u63D0\u793A", "\u6253\u5F00\u5468\u671F\u7B14\u8BB0\u540E\uFF0C\u70B9\u51FB\u53F3\u4E0A\u89D2\u7684\u300C\u5199\u4F5C\u63D0\u793A\u300D\uFF0C\u5728\u4FA7\u680F\u67E5\u770B\u53EF\u9009\u7684\u8BB0\u5F55\u8981\u70B9\u3002"]
     ];
@@ -1675,8 +1705,9 @@ var HomeView = class extends import_obsidian3.ItemView {
         await this.plugin.habits.toggle(id, date, today());
         await this.refresh();
       },
-      manageHabits: () => new HabitModal(this.app, habitState.data?.habits ?? [], async (name) => {
-        await this.plugin.habits.add(name);
+      manageHabits: () => new HabitModal(this.app, habitState.data?.habits ?? [], async (name, id) => {
+        if (id) await this.plugin.habits.rename(id, name);
+        else await this.plugin.habits.add(name);
         await this.refresh();
       }).open(),
       syncGitHub: () => this.plugin.syncGitHub(true),
