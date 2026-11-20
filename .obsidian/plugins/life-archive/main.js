@@ -1144,11 +1144,16 @@ function habitFilters(parent, habits, selected) {
     el(filter, "span", "la-habit-name", name);
   }
 }
-function habitChecklist(parent, model, noteExists) {
+function habitChecklist(parent, model) {
   const { date, data, error } = model.calendar;
   const checklist = el(parent, "section", "la-habit-checklist");
-  const day = parseDay(date).format("M \u6708 D \u65E5");
-  el(checklist, "h3", "", date === model.today ? `\u4ECA\u5929 \xB7 ${day}` : day);
+  const heading = el(checklist, "div", "la-habit-checklist-head");
+  el(heading, "h3", "", "\u4E60\u60EF\u6253\u5361");
+  const datePicker = el(heading, "input", "la-habit-date-input");
+  datePicker.type = "date";
+  datePicker.value = date;
+  datePicker.dataset.action = "habit-date";
+  datePicker.setAttribute("aria-label", "\u6253\u5361\u65E5\u671F");
   if (error) el(checklist, "p", "la-error", error).setAttribute("role", "alert");
   else if (!data?.habits.length) el(checklist, "p", "la-habit-hint", "\u5728\u300C\u7BA1\u7406\u4E60\u60EF\u300D\u4E2D\u6DFB\u52A0\u7B2C\u4E00\u4E2A\u4E60\u60EF\u3002");
   else if (date > model.today) el(checklist, "p", "la-habit-hint", "\u8FD9\u4E00\u5929\u8FD8\u672A\u5230\u6765\u3002");
@@ -1165,7 +1170,7 @@ function habitChecklist(parent, model, noteExists) {
       el(b, "span", "la-habit-name", habit.name);
     }
   }
-  button(checklist, noteExists ? "\u6253\u5F00\u65E5\u7B14\u8BB0" : "\u65B0\u5EFA\u65E5\u7B14\u8BB0", "habit-note", "la-text-button");
+  return datePicker;
 }
 function mountHome(container, model, actions) {
   container.replaceChildren();
@@ -1199,24 +1204,13 @@ function mountHome(container, model, actions) {
   el(thoughts, "span", "", " \u7BC7\u601D\u60F3");
   el(status, "span", "la-private", "\u4FDD\u5B58\u5728\u4F60\u7684\u7B14\u8BB0\u5E93");
   const grid = el(root, "div", "la-main-grid");
-  const { mode, date: selectedDate, data, filter } = model.calendar;
-  const habitMode = mode === "habits";
+  const { date: selectedDate, data, filter } = model.calendar;
   const habits = data?.habits ?? [];
   const visibleHabits = filter ? habits.filter((habit) => habit.id === filter) : habits;
   const calendar = section(grid, "\u8BB0\u5F55\u65E5\u5386", "");
   calendar.classList.add("la-calendar-card");
-  if (habitMode) {
-    const head = calendar.querySelector(".la-card-head");
-    button(head, "\u7BA1\u7406\u4E60\u60EF", "manage-habits", "la-text-button").disabled = Boolean(model.calendar.error);
-  }
-  const modes = el(calendar, "div", "la-calendar-modes");
-  modes.setAttribute("role", "group");
-  modes.setAttribute("aria-label", "\u65E5\u5386\u89C6\u56FE");
-  for (const [value, label] of [["notes", "\u5468\u671F\u7B14\u8BB0"], ["habits", "\u4E60\u60EF\u6253\u5361"]]) {
-    const toggle = button(modes, label, "calendar-mode", "la-small-button");
-    toggle.dataset.mode = value;
-    toggle.setAttribute("aria-pressed", String(mode === value));
-  }
+  const head = calendar.querySelector(".la-card-head");
+  button(head, "\u7BA1\u7406\u4E60\u60EF", "manage-habits", "la-text-button").disabled = Boolean(model.calendar.error);
   const nav = el(calendar, "div", "la-calendar-nav");
   const monthInput = el(nav, "input", "la-month-input");
   monthInput.type = "month";
@@ -1227,48 +1221,41 @@ function mountHome(container, model, actions) {
   button(navButtons, "\u2039", "prev", "la-icon-button", "\u4E0A\u4E2A\u6708");
   button(navButtons, "\u4ECA\u5929", "this-month", "la-small-button", "\u56DE\u5230\u672C\u6708");
   button(navButtons, "\u203A", "next", "la-icon-button", "\u4E0B\u4E2A\u6708");
-  if (habitMode && habits.length) habitFilters(calendar, habits, filter);
+  if (habits.length) habitFilters(calendar, habits, filter);
   const table = el(calendar, "table", "la-calendar");
-  table.setAttribute("aria-label", `${monthLabel(model.month)}${habitMode ? "\u4E60\u60EF\u6253\u5361" : "\u8BB0\u5F55\u65E5\u5386"}`);
-  table.classList.toggle("la-habit-calendar", habitMode);
+  table.setAttribute("aria-label", `${monthLabel(model.month)}\u8BB0\u5F55\u65E5\u5386`);
   const thead = el(table, "thead"), tr = el(thead, "tr");
-  for (const day of habitMode ? ["\u4E00", "\u4E8C", "\u4E09", "\u56DB", "\u4E94", "\u516D", "\u65E5"] : ["\u5468", "\u4E00", "\u4E8C", "\u4E09", "\u56DB", "\u4E94", "\u516D", "\u65E5"]) {
+  for (const day of ["\u5468", "\u4E00", "\u4E8C", "\u4E09", "\u56DB", "\u4E94", "\u516D", "\u65E5"]) {
     const th = el(tr, "th", "", day);
     th.scope = "col";
   }
   const tbody = el(table, "tbody");
-  const focus = model.focusDate ?? (habitMode ? selectedDate : model.today.startsWith(model.month) ? model.today : `${model.month}-01`);
+  const focus = model.focusDate ?? selectedDate;
   for (const week of calendarMonth(model.month)) {
     const row = el(tbody, "tr");
-    if (!habitMode) {
-      const weekCell = el(row, "th");
-      weekCell.scope = "row";
-      const weekExists = hasPeriod(periodFor("weekly", week.days[0]));
-      const wb = button(weekCell, week.key.slice(-2), "week", "la-week", `${week.key} \u5468\u7B14\u8BB0\uFF0C${weekExists ? "\u5DF2\u521B\u5EFA" : "\u5F85\u521B\u5EFA"}`);
-      wb.dataset.week = week.key;
-      wb.dataset.anchor = week.days[0];
-      if (weekExists) wb.classList.add("has-note");
-    }
+    const weekCell = el(row, "th");
+    weekCell.scope = "row";
+    const weekExists = hasPeriod(periodFor("weekly", week.days[0]));
+    const wb = button(weekCell, week.key.slice(-2), "week", "la-week", `${week.key} \u5468\u7B14\u8BB0\uFF0C${weekExists ? "\u5DF2\u521B\u5EFA" : "\u5F85\u521B\u5EFA"}`);
+    wb.dataset.week = week.key;
+    wb.dataset.anchor = week.days[0];
+    if (weekExists) wb.classList.add("has-note");
     for (const day of week.days) {
       const cell = el(row, "td");
       const exists = hasPeriod(periodFor("daily", day)), isToday = day === model.today;
       const completed = data?.completed[day] ?? [];
-      const habitStatus = day > model.today ? "\u672A\u6765\u65E5\u671F" : visibleHabits.map((habit) => `${habit.name}${completed.includes(habit.id) ? "\u5DF2\u5B8C\u6210" : "\u672A\u5B8C\u6210"}`).join("\uFF0C");
-      const details = habitMode ? habitStatus : exists ? "\u5DF2\u6709\u8BB0\u5F55" : "\u5C1A\u672A\u521B\u5EFA";
-      const label = [day, isToday ? "\u4ECA\u5929" : "", details].filter(Boolean).join("\uFF0C");
+      const habitStatus = day > model.today ? "" : visibleHabits.map((habit) => `${habit.name}${completed.includes(habit.id) ? "\u5DF2\u5B8C\u6210" : "\u672A\u5B8C\u6210"}`).join("\uFF0C");
+      const label = [day, isToday ? "\u4ECA\u5929" : "", exists ? "\u5DF2\u6709\u8BB0\u5F55\uFF0C\u6253\u5F00\u65E5\u7B14\u8BB0" : "\u5C1A\u672A\u521B\u5EFA\uFF0C\u521B\u5EFA\u65E5\u7B14\u8BB0", habitStatus].filter(Boolean).join("\uFF0C");
       const b = button(cell, "", "day", "la-day", label);
       b.dataset.date = day;
       b.tabIndex = day === focus ? 0 : -1;
       el(b, "span", "la-day-number", String(Number(day.slice(-2))));
-      if (habitMode) {
-        b.setAttribute("aria-pressed", String(day === selectedDate));
-        if (visibleHabits.length && day <= model.today) renderHabitRing(b, habits, visibleHabits, completed);
-      } else {
-        const dot = el(b, "span", "la-day-dot");
-        dot.setAttribute("aria-hidden", "true");
-        if (!exists) dot.classList.add("is-empty");
-        if (exists) b.classList.add("has-note");
-      }
+      const dot = el(b, "span", "la-day-dot");
+      dot.setAttribute("aria-hidden", "true");
+      dot.classList.toggle("is-empty", !exists);
+      b.classList.toggle("has-note", exists);
+      b.classList.toggle("is-checkin-date", habits.length > 0 && day === selectedDate);
+      if (visibleHabits.length && day <= model.today) renderHabitRing(b, habits, visibleHabits, completed);
       if (!day.startsWith(model.month)) b.classList.add("is-other-month");
       if (isToday) {
         b.classList.add("is-today");
@@ -1276,24 +1263,22 @@ function mountHome(container, model, actions) {
       }
     }
   }
-  if (habitMode) habitChecklist(calendar, model, hasPeriod(periodFor("daily", selectedDate)));
-  else {
-    const legend = el(calendar, "p", "la-calendar-legend");
-    el(legend, "span", "la-legend-dot");
-    el(legend, "span", "", "\u5DF2\u6709\u8BB0\u5F55");
-    el(legend, "span", "la-legend-today");
-    el(legend, "span", "", "\u4ECA\u5929");
-    const periods = el(calendar, "div", "la-periods");
-    const longPeriodLabels = { monthly: "\u6708\u5EA6\u7B14\u8BB0", quarterly: "\u5B63\u5EA6\u7B14\u8BB0", yearly: "\u5E74\u5EA6\u7B14\u8BB0" };
-    for (const kind of ["monthly", "quarterly", "yearly"]) {
-      const p = periodFor(kind, `${model.month}-01`);
-      const exists = hasPeriod(p);
-      const b = button(periods, longPeriodLabels[kind], "period", "la-period-button");
-      b.dataset.kind = kind;
-      b.setAttribute("aria-label", `${longPeriodLabels[kind]} \xB7 ${p.key} \xB7 ${exists ? "\u6253\u5F00\u5DF2\u6709\u7B14\u8BB0" : "\u6309\u6A21\u677F\u521B\u5EFA"}`);
-      el(b, "span", "la-period-state", exists ? "\u5DF2\u8BB0\u5F55 \u2197" : "\u5F85\u8BB0\u5F55 \uFF0B");
-    }
+  const legend = el(calendar, "p", "la-calendar-legend");
+  el(legend, "span", "la-legend-dot");
+  el(legend, "span", "", "\u5DF2\u6709\u8BB0\u5F55");
+  el(legend, "span", "la-legend-today");
+  el(legend, "span", "", "\u4ECA\u5929");
+  const periods = el(calendar, "div", "la-periods");
+  const longPeriodLabels = { monthly: "\u6708\u5EA6\u7B14\u8BB0", quarterly: "\u5B63\u5EA6\u7B14\u8BB0", yearly: "\u5E74\u5EA6\u7B14\u8BB0" };
+  for (const kind of ["monthly", "quarterly", "yearly"]) {
+    const p = periodFor(kind, `${model.month}-01`);
+    const exists = hasPeriod(p);
+    const b = button(periods, longPeriodLabels[kind], "period", "la-period-button");
+    b.dataset.kind = kind;
+    b.setAttribute("aria-label", `${longPeriodLabels[kind]} \xB7 ${p.key} \xB7 ${exists ? "\u6253\u5F00\u5DF2\u6709\u7B14\u8BB0" : "\u6309\u6A21\u677F\u521B\u5EFA"}`);
+    el(b, "span", "la-period-state", exists ? "\u5DF2\u8BB0\u5F55 \u2197" : "\u5F85\u8BB0\u5F55 \uFF0B");
   }
+  const habitDateInput = habitChecklist(calendar, model);
   const noteStack = el(grid, "div", "la-note-stack");
   const articles = section(noteStack, "\u8FD1\u671F\u601D\u60F3", "\u7559\u4F4F\u4E00\u4E2A\u60F3\u6CD5");
   button(articles.querySelector(".la-card-head"), "\u67E5\u770B\u5168\u90E8 \u2197", "browse-thoughts", "la-text-button la-small");
@@ -1345,9 +1330,6 @@ function mountHome(container, model, actions) {
         case "file":
           perform(actions.openFile(b.dataset.path));
           break;
-        case "calendar-mode":
-          perform(actions.switchCalendar(b.dataset.mode));
-          break;
         case "manage-habits":
           perform(actions.manageHabits());
           break;
@@ -1357,11 +1339,8 @@ function mountHome(container, model, actions) {
         case "toggle-habit":
           perform(actions.toggleHabit(b.dataset.habit, selectedDate));
           break;
-        case "habit-note":
-          perform(actions.openPeriod("daily", selectedDate));
-          break;
         case "day":
-          perform(habitMode ? actions.selectHabitDate(b.dataset.date) : actions.openPeriod("daily", b.dataset.date));
+          perform(actions.openPeriod("daily", b.dataset.date));
           break;
         case "week":
           perform(actions.openPeriod("weekly", b.dataset.anchor));
@@ -1399,6 +1378,13 @@ function mountHome(container, model, actions) {
   const change = () => {
     if (/^\d{4}-\d{2}$/.test(monthInput.value)) perform(actions.changeMonth(monthInput.value));
   };
+  const changeHabitDate = () => {
+    if (!habitDateInput.value) {
+      habitDateInput.value = selectedDate;
+      return;
+    }
+    perform(actions.selectHabitDate(habitDateInput.value));
+  };
   const keydown = (event) => {
     const target = event.target?.closest("[data-date]");
     if (!target?.dataset.date) return;
@@ -1416,11 +1402,13 @@ function mountHome(container, model, actions) {
   root.addEventListener("click", click);
   root.addEventListener("keydown", keydown);
   monthInput.addEventListener("change", change);
+  habitDateInput.addEventListener("change", changeHabitDate);
   if (model.focusDate) root.querySelector(`[data-action="day"][data-date="${model.focusDate}"]`)?.focus();
   return () => {
     root.removeEventListener("click", click);
     root.removeEventListener("keydown", keydown);
     monthInput.removeEventListener("change", change);
+    habitDateInput.removeEventListener("change", changeHabitDate);
   };
 }
 
@@ -1523,7 +1511,7 @@ var HelpModal = class extends import_obsidian2.Modal {
     const content = this.contentEl;
     const steps = [
       ["\u6253\u5F00\u5468\u671F\u7B14\u8BB0", "\u70B9\u51FB\u65E5\u671F\u3001\u5468\u53F7\u6216\u6708\uFF0F\u5B63\uFF0F\u5E74\u6309\u94AE\uFF0C\u6253\u5F00\u5BF9\u5E94\u5468\u671F\u7684\u7B14\u8BB0\u3002\u5DF2\u6709\u8BB0\u5F55\u7684\u65E5\u671F\u4F1A\u663E\u793A\u5706\u70B9\u3002"],
-      ["\u4E60\u60EF\u6253\u5361", "\u5207\u6362\u5230\u300C\u4E60\u60EF\u6253\u5361\u300D\uFF0C\u4ECE\u300C\u7BA1\u7406\u4E60\u60EF\u300D\u6DFB\u52A0\u4E60\u60EF\u3002\u70B9\u51FB\u65E5\u671F\u53EF\u4EE5\u52FE\u9009\u3001\u8865\u6253\u5361\u6216\u64A4\u9500\u3002"],
+      ["\u4E60\u60EF\u6253\u5361", "\u4ECE\u8BB0\u5F55\u65E5\u5386\u7684\u300C\u7BA1\u7406\u4E60\u60EF\u300D\u6DFB\u52A0\u4E60\u60EF\u3002\u5728\u65E5\u5386\u4E0B\u65B9\u9009\u62E9\u6253\u5361\u65E5\u671F\uFF0C\u518D\u52FE\u9009\u3001\u8865\u6253\u5361\u6216\u64A4\u9500\u3002"],
       ["\u7559\u4F4F\u601D\u60F3", "\u70B9\u51FB\u300C\u65B0\u5EFA\u601D\u60F3\u6587\u7AE0\u300D\uFF0C\u8F93\u5165\u6807\u9898\u540E\u7EE7\u7EED\u5728 Obsidian \u4E2D\u5199\u4F5C\u3002"],
       ["\u5199\u4F5C\u63D0\u793A", "\u6253\u5F00\u5468\u671F\u7B14\u8BB0\u540E\uFF0C\u70B9\u51FB\u53F3\u4E0A\u89D2\u7684\u300C\u5199\u4F5C\u63D0\u793A\u300D\uFF0C\u5728\u4FA7\u680F\u67E5\u770B\u53EF\u9009\u7684\u8BB0\u5F55\u8981\u70B9\u3002"]
     ];
@@ -1544,7 +1532,6 @@ var HomeView = class extends import_obsidian3.ItemView {
   }
   dispose;
   month;
-  mode = "notes";
   habitDate;
   habitFilter = "";
   renderVersion = 0;
@@ -1581,8 +1568,11 @@ var HomeView = class extends import_obsidian3.ItemView {
     const version = ++this.renderVersion;
     const currentDay = today();
     const habitDate = this.habitDate ?? (currentDay.startsWith(this.month) ? currentDay : `${this.month}-01`);
-    const calendar = { mode: this.mode, date: habitDate, filter: this.habitFilter };
-    const habitState = this.mode === "habits" ? await this.plugin.habits.read().then((data) => ({ data }), (error) => ({ error: String(error instanceof Error ? error.message : error) })) : {};
+    const calendar = { date: habitDate, filter: this.habitFilter };
+    const habitState = await this.plugin.habits.read().then(
+      (data) => ({ data }),
+      (error) => ({ error: error instanceof Error ? error.message : String(error) })
+    );
     if (version !== this.renderVersion) return;
     if (habitState.data && !habitState.data.habits.some((habit) => habit.id === calendar.filter)) {
       this.habitFilter = calendar.filter = "";
@@ -1604,17 +1594,11 @@ var HomeView = class extends import_obsidian3.ItemView {
     }, {
       openPeriod: (kind, date) => this.plugin.notes.openPeriod(kind, date),
       openThought: () => this.plugin.newThought(),
-      switchCalendar: (mode) => {
-        if (mode === this.mode) return;
-        this.mode = mode;
-        this.habitFilter = "";
-        this.habitDate = void 0;
-        return this.refresh();
-      },
-      selectHabitDate: (date) => {
+      selectHabitDate: async (date) => {
+        parseDay(date);
         this.month = date.slice(0, 7);
         this.habitDate = date;
-        return this.refresh(date);
+        await this.refresh();
       },
       filterHabit: (id) => {
         this.habitFilter = id;
@@ -1639,7 +1623,7 @@ var HomeView = class extends import_obsidian3.ItemView {
     this.updateSyncState(this.plugin.syncState);
     this.contentEl.scrollTop = scroll;
     if (!focusDate && previous) {
-      const replacement = Array.from(this.contentEl.querySelectorAll("[data-action]")).find((el2) => ["action", "date", "habit", "mode", "kind", "week", "path"].every((key) => el2.dataset[key] === previous[key]));
+      const replacement = Array.from(this.contentEl.querySelectorAll("[data-action]")).find((el2) => ["action", "date", "habit", "kind", "week", "path"].every((key) => el2.dataset[key] === previous[key]));
       if (replacement?.dataset.date) {
         this.contentEl.querySelector('[data-action="day"][tabindex="0"]')?.setAttribute("tabindex", "-1");
         replacement.tabIndex = 0;
